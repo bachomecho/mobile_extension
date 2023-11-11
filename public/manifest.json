@@ -1,0 +1,17 @@
+{
+  "name": "Mobile Extension",
+  "description": "This extension is created to add additional functionality to mobile.bg",
+  "version": "3.0",
+  "manifest_version": 3,
+  "action": {
+    "default_icon": "mobile_icon.png"
+  },
+  "permissions": ["activeTab", "scripting"],
+  "background": { "service_worker": "service_worker.js" },
+  "content_scripts": [
+    {
+      "matches": ["https://www.mobile.bg/*"],
+      "js": ["content_script.js"]
+    }
+  ]
+}
