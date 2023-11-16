@@ -14,16 +14,18 @@ async function followLink(link: string | null): Promise<any> {
     console.error("Error fetching data:", error);
   }
 }
-function parseDom(html: string) {
+function parseDom(html: string): string {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, "text/html");
   // getting title from follow link
-  return doc.getElementsByTagName("h1")[0].textContent!;
+  return doc.getElementsByTagName("h1")[0].textContent!.toLowerCase();
 }
 
-async function getTextContentByClassName(className: string): Promise<string[]> {
+async function getTitleElements(
+  className: string,
+  filterValue: string
+): Promise<void> {
   const elements = document.getElementsByClassName(className);
-  const textContents: string[] = [];
 
   for (let i = 0; i < elements.length; i++) {
     const element = elements[i] as HTMLElement;
@@ -34,10 +36,13 @@ async function getTextContentByClassName(className: string): Promise<string[]> {
       const html = await followLink(link);
       textContent = parseDom(html);
     }
-    textContents.push(textContent);
+    if (textContent.includes(filterValue.toLowerCase())) {
+      const parentNode = element.parentNode;
+      if (parentNode) {
+        (parentNode as HTMLElement).style.display = "none"; // does not hide whole element
+      }
+    }
   }
-
-  return textContents;
 }
 
 chrome.runtime.onMessage.addListener(async function (
@@ -46,11 +51,11 @@ chrome.runtime.onMessage.addListener(async function (
   sendResponse
 ) {
   if (request.message === "filter") {
-    sendResponse({ confirm: "message received by content_script" });
-    let classTextContents = await getTextContentByClassName("mmm");
-    classTextContents = classTextContents
-      .slice(2)
-      .map((item) => item.toLowerCase());
-    console.log(classTextContents);
+    sendResponse({
+      confirm: "message received by content_script",
+      value: request.filterValue,
+    });
+    await getTitleElements("mmm", request.filterValue);
+    console.log("Filtered successfully!");
   }
 });
