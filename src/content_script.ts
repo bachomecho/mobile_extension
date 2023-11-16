@@ -1,6 +1,3 @@
-// TODO: private seller or autohouse
-// TODO: average price
-// TODO: hide all listings that do not contain user input from service_worker
 async function followLink(link: string | null): Promise<any> {
   try {
     const response = await fetch(link);

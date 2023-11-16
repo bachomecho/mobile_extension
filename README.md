@@ -2,5 +2,4 @@
 
 # Next Steps
 
--average price for search
--filter listing by private owners
+- average price for search

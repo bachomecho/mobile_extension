@@ -4,7 +4,7 @@ chrome.tabs.query({ active: true, currentWindow: true }, async function (tabs) {
     tabs[0].id as number,
     { message: "filter" },
     function (response) {
-      alert(response);
+      console.log(response);
     }
   );
 });
