@@ -48,10 +48,12 @@ chrome.runtime.onMessage.addListener(async function (
   sender,
   sendResponse
 ) {
-  let classTextContents = await getTextContentByClassName("mmm");
-  classTextContents = classTextContents.slice(2);
-  console.log(classTextContents);
-  if (request.carmodel === "e39") {
-    sendResponse({ confirmmodel: "goodmodel" });
+  if (request.message === "filter") {
+    sendResponse({ confirm: "message received by content_script" });
+    let classTextContents = await getTextContentByClassName("mmm");
+    classTextContents = classTextContents
+      .slice(2)
+      .map((item) => item.toLowerCase());
+    console.log(classTextContents);
   }
 });

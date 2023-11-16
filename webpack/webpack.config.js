@@ -3,9 +3,10 @@ const CopyPlugin = require("copy-webpack-plugin");
 const TerserPlugin = require("terser-webpack-plugin");
 module.exports = {
   mode: "production",
+  cache: false,
   entry: {
-    service_worker: path.resolve(__dirname, "..", "src", "service-worker.ts"),
-    content_script: path.resolve(__dirname, "..", "src", "content-script.ts"),
+    content_script: path.resolve(__dirname, "..", "src", "content_script.ts"),
+    popup: path.resolve(__dirname, "..", "src", "popup.ts"),
   },
   output: {
     path: path.join(__dirname, "../dist"),
