@@ -18,16 +18,34 @@ function parseDom(html: string): string {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, "text/html");
   // getting title from follow link
-  return doc.getElementsByTagName("h1")[0].textContent!.toLowerCase();
+  return doc.getElementsByTagName("h1")[0].textContent!;
 }
 
-async function getTitleElements(
-  className: string,
-  filterValue: string
-): Promise<void> {
-  const elements = document.getElementsByClassName(className);
+function findClosestAncestorWithClass(element: Element, className: string) {
+  if (element.classList.contains(className)) {
+    return element;
+  }
 
-  for (let i = 0; i < elements.length; i++) {
+  // traverse the DOM tree upwards until a parent with the specified class is found
+  let count = 0;
+  while (element.parentElement) {
+    element = element.parentElement;
+    if (element.classList.contains(className) && count != 0) {
+      return element;
+    } else {
+      count++;
+      continue;
+    }
+  } // this count is needed because the first element with class tablereset is the car image and not the main parent node
+
+  console.log(`ancestor element not found for ${element}`);
+  return null;
+}
+
+async function hideHTML(filterValue: string): Promise<void> {
+  const elements = document.getElementsByClassName("mmm"); // gets title elements
+  const titleArray = new Array<string>();
+  for (let i = 2; i < elements.length; i++) {
     const element = elements[i] as HTMLElement;
     let textContent = element.textContent ?? "empty";
     let link: string | null = "";
@@ -36,26 +54,33 @@ async function getTitleElements(
       const html = await followLink(link);
       textContent = parseDom(html);
     }
-    if (textContent.includes(filterValue.toLowerCase())) {
-      const parentNode = element.parentNode;
-      if (parentNode) {
-        (parentNode as HTMLElement).style.display = "none"; // does not hide whole element
+    titleArray.push(textContent);
+    if (textContent.toLocaleLowerCase().includes(filterValue.toLowerCase())) {
+      //e39 not being recognized here - if typed in bulgarian it is recognized
+      const hideElement = findClosestAncestorWithClass(
+        element,
+        "tablereset"
+      ) as HTMLElement;
+      if (hideElement) {
+        hideElement.style.border = "thick solid #ff0000";
       }
     }
   }
+  console.log(titleArray);
 }
 
 chrome.runtime.onMessage.addListener(async function (
   request,
-  sender,
+  _sender,
   sendResponse
 ) {
+  // TODO: add pagination to the filtering
   if (request.message === "filter") {
     sendResponse({
-      confirm: "message received by content_script",
+      confirm: "popup message was received by content_script",
       value: request.filterValue,
     });
-    await getTitleElements("mmm", request.filterValue);
+    await hideHTML(request.filterValue);
     console.log("Filtered successfully!");
   }
 });
