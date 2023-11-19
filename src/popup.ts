@@ -17,4 +17,10 @@ function executeFilter() {
   );
 }
 
-filterButton?.addEventListener("click", executeFilter);
+filterButton?.addEventListener("click", executeFilter, false);
+document.addEventListener("keypress", function (e) {
+  if (e.key === "Enter") {
+    console.log("enter works!");
+    executeFilter();
+  }
+});
