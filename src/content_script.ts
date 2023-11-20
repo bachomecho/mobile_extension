@@ -45,6 +45,9 @@ function findClosestAncestorWithClass(element: Element, className: string) {
 async function hideHTML(filterValue: string): Promise<void> {
   const elements = document.getElementsByClassName("mmm"); // gets title elements
   const titleArray = new Array<string>();
+  let allElements = new Array<HTMLElement>();
+  let filterElementsArray = new Array<HTMLElement>();
+
   for (let i = 2; i < elements.length; i++) {
     const element = elements[i] as HTMLElement;
     let textContent = element.textContent ?? "empty";
@@ -52,21 +55,29 @@ async function hideHTML(filterValue: string): Promise<void> {
     if (textContent.includes("...")) {
       link = element.getAttribute("href");
       const html = await followLink(link);
+      // TODO: cache textcontents here: followlink requests html everytime
       textContent = parseDom(html);
     }
     titleArray.push(textContent);
-    if (textContent.toLocaleLowerCase().includes(filterValue.toLowerCase())) {
+    const filterElement = findClosestAncestorWithClass(
+      element,
+      "tablereset"
+    ) as HTMLElement;
+    if (filterElement) {
+      allElements.push(filterElement);
+    }
+    if (textContent.toLowerCase().includes(filterValue.toLowerCase())) {
       //e39 not being recognized here - if typed in bulgarian it is recognized
-      const hideElement = findClosestAncestorWithClass(
-        element,
-        "tablereset"
-      ) as HTMLElement;
-      if (hideElement) {
-        hideElement.style.border = "thick solid #ff0000";
-      }
+      filterElementsArray.push(filterElement);
     }
   }
-  console.log(titleArray);
+  const elementsToFilter = allElements.filter(
+    (e) => !filterElementsArray.includes(e)
+  ); // elements from allElements that are not present in filterElementsArray
+  console.log(allElements);
+  console.log(filterElementsArray);
+  console.log(elementsToFilter);
+  elementsToFilter.forEach((e) => (e.style.display = "none"));
 }
 
 chrome.runtime.onMessage.addListener(async function (
