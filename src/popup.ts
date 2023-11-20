@@ -2,13 +2,25 @@
 const inputElement = document.getElementById("filtervalue") as HTMLInputElement;
 inputElement.focus();
 const filterButton = document.getElementById("filterbutton");
+const removeFilterButton = document.getElementById("removefilter");
 function executeFilter() {
+  chrome.tabs.query(
+    { active: true, currentWindow: true },
+    async function (tabs) {
+      chrome.tabs.sendMessage(tabs[0].id as number, {
+        message: "filter",
+        filterValue: inputElement?.value,
+      });
+    }
+  );
+}
+function reloadPage() {
   chrome.tabs.query(
     { active: true, currentWindow: true },
     async function (tabs) {
       chrome.tabs.sendMessage(
         tabs[0].id as number,
-        { message: "filter", filterValue: inputElement?.value },
+        { message: "reload" },
         function (response) {
           console.log(response);
         }
@@ -16,7 +28,6 @@ function executeFilter() {
     }
   );
 }
-
 filterButton?.addEventListener("click", executeFilter, false);
 document.addEventListener("keypress", function (e) {
   if (e.key === "Enter") {
@@ -24,3 +35,4 @@ document.addEventListener("keypress", function (e) {
     executeFilter();
   }
 });
+removeFilterButton?.addEventListener("click", reloadPage);

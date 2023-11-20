@@ -74,24 +74,23 @@ async function hideHTML(filterValue: string): Promise<void> {
   const elementsToFilter = allElements.filter(
     (e) => !filterElementsArray.includes(e)
   ); // elements from allElements that are not present in filterElementsArray
-  console.log(allElements);
-  console.log(filterElementsArray);
-  console.log(elementsToFilter);
   elementsToFilter.forEach((e) => (e.style.display = "none"));
 }
 
 chrome.runtime.onMessage.addListener(async function (
   request,
   _sender,
-  sendResponse
+  _sendResponse
 ) {
   // TODO: add pagination to the filtering
-  if (request.message === "filter") {
-    sendResponse({
-      confirm: "popup message was received by content_script",
-      value: request.filterValue,
-    });
-    await hideHTML(request.filterValue);
-    console.log("Filtered successfully!");
+  switch (request.message) {
+    case "filter":
+      await hideHTML(request.filterValue);
+      break;
+    case "reload":
+      window.location.reload();
+      break;
+    default:
+      console.log("No message from popup.");
   }
 });
