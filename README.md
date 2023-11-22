@@ -4,7 +4,8 @@
 # TODO
 
 - [x] hide all elements that do not contain filtervalue
-- [ ] remove filter button
+- [x] remove filter button
+- [x] show how many elements remain after filter
 - [ ] add pagination for filtering
 
 # Next Steps

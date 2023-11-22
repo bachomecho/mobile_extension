@@ -1,33 +1,26 @@
-// establish long lived connections? https://stackoverflow.com/questions/13546778/how-to-communicate-between-popup-js-and-background-js-in-chrome-extension
+// get elements
 const inputElement = document.getElementById("filtervalue") as HTMLInputElement;
 inputElement.focus();
 const filterButton = document.getElementById("filterbutton");
 const removeFilterButton = document.getElementById("removefilter");
+
+// init port
+let port: chrome.runtime.Port;
+chrome.tabs.query({ active: true, currentWindow: true }, async function (tabs) {
+  port = chrome.tabs.connect(tabs[0].id as number, { name: "MOBILE_POPUP" });
+});
+
+// button functions
 function executeFilter() {
-  chrome.tabs.query(
-    { active: true, currentWindow: true },
-    async function (tabs) {
-      chrome.tabs.sendMessage(tabs[0].id as number, {
-        message: "filter",
-        filterValue: inputElement?.value,
-      });
-    }
-  );
+  port.postMessage({ message: "filter", filterValue: inputElement.value });
+  port.onMessage.addListener(function (response) {
+    document.getElementById("count")!.innerText = response.value;
+  });
 }
 function reloadPage() {
-  chrome.tabs.query(
-    { active: true, currentWindow: true },
-    async function (tabs) {
-      chrome.tabs.sendMessage(
-        tabs[0].id as number,
-        { message: "reload" },
-        function (response) {
-          console.log(response);
-        }
-      );
-    }
-  );
+  port.postMessage({ message: "reload" });
 }
+
 filterButton?.addEventListener("click", executeFilter, false);
 document.addEventListener("keypress", function (e) {
   if (e.key === "Enter") {

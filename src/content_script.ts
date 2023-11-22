@@ -1,3 +1,9 @@
+interface CarElement {
+  title: string;
+  wholeElement: HTMLElement;
+  price: number;
+} // TODO: use/ implement this interface
+
 async function followLink(link: string | null): Promise<any> {
   try {
     const response = await fetch(link);
@@ -42,9 +48,9 @@ function findClosestAncestorWithClass(element: Element, className: string) {
   return null;
 }
 
-async function hideHTML(filterValue: string): Promise<void> {
+let remainingElementsLength: number;
+async function hideHTML(filterValue: string): Promise<HTMLElement[]> {
   const elements = document.getElementsByClassName("mmm"); // gets title elements
-  const titleArray = new Array<string>();
   let allElements = new Array<HTMLElement>();
   let filterElementsArray = new Array<HTMLElement>();
 
@@ -58,7 +64,6 @@ async function hideHTML(filterValue: string): Promise<void> {
       // TODO: cache textcontents here: followlink requests html everytime
       textContent = parseDom(html);
     }
-    titleArray.push(textContent);
     const filterElement = findClosestAncestorWithClass(
       element,
       "tablereset"
@@ -71,26 +76,33 @@ async function hideHTML(filterValue: string): Promise<void> {
       filterElementsArray.push(filterElement);
     }
   }
+  remainingElementsLength = filterElementsArray.length;
   const elementsToFilter = allElements.filter(
     (e) => !filterElementsArray.includes(e)
   ); // elements from allElements that are not present in filterElementsArray
-  elementsToFilter.forEach((e) => (e.style.display = "none"));
+  return elementsToFilter;
 }
 
-chrome.runtime.onMessage.addListener(async function (
-  request,
-  _sender,
-  _sendResponse
-) {
-  // TODO: add pagination to the filtering
-  switch (request.message) {
-    case "filter":
-      await hideHTML(request.filterValue);
-      break;
-    case "reload":
-      window.location.reload();
-      break;
-    default:
-      console.log("No message from popup.");
-  }
+chrome.runtime.onConnect.addListener(function (port) {
+  console.log("Connected");
+  console.assert(port.name === "MOBILE_POPUP");
+  port.onMessage.addListener(async function (request) {
+    // TODO: add pagination to the filtering
+    switch (request.message) {
+      case "filter":
+        const elementsToFilter = await hideHTML(request.filterValue);
+        elementsToFilter.forEach((e) => (e.style.display = "none"));
+        console.log(remainingElementsLength);
+        port.postMessage({
+          message: "filterAmount",
+          value: remainingElementsLength,
+        });
+        break;
+      case "reload":
+        window.location.reload();
+        break;
+      default:
+        console.log("No message from popup.");
+    }
+  });
 });
