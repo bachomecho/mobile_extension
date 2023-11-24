@@ -12,3 +12,4 @@
 
 - tailwind for styling?
 - average price for search
+- export results to csv?

@@ -1,8 +1,9 @@
 interface CarElement {
+  element: HTMLElement;
   title: string;
-  wholeElement: HTMLElement;
-  price: number;
-} // TODO: use/ implement this interface
+  price: string;
+  currency?: string;
+}
 
 async function followLink(link: string | null): Promise<any> {
   try {
@@ -48,14 +49,13 @@ function findClosestAncestorWithClass(element: Element, className: string) {
   return null;
 }
 
-let remainingElementsLength: number;
-async function hideHTML(filterValue: string): Promise<HTMLElement[]> {
-  const elements = document.getElementsByClassName("mmm"); // gets title elements
-  let allElements = new Array<HTMLElement>();
-  let filterElementsArray = new Array<HTMLElement>();
-
-  for (let i = 2; i < elements.length; i++) {
-    const element = elements[i] as HTMLElement;
+async function createCarObjects(): Promise<CarElement[]> {
+  const titleElements = document.getElementsByClassName("mmm"); // gets title elements
+  const priceElements = document.getElementsByClassName("price");
+  const carObjList = new Array<CarElement>();
+  for (let i = 2; i < titleElements.length; i++) {
+    // first two elements with class mmm are not car elements so they are skipped over
+    const element = titleElements[i] as HTMLElement;
     let textContent = element.textContent ?? "empty";
     let link: string | null = "";
     if (textContent.includes("...")) {
@@ -64,23 +64,37 @@ async function hideHTML(filterValue: string): Promise<HTMLElement[]> {
       // TODO: cache textcontents here: followlink requests html everytime
       textContent = parseDom(html);
     }
-    const filterElement = findClosestAncestorWithClass(
-      element,
-      "tablereset"
-    ) as HTMLElement;
-    if (filterElement) {
-      allElements.push(filterElement);
-    }
-    if (textContent.toLowerCase().includes(filterValue.toLowerCase())) {
-      //e39 not being recognized here - if typed in bulgarian it is recognized
-      filterElementsArray.push(filterElement);
-    }
+    carObjList.push({
+      element: element,
+      title: textContent,
+      price: priceElements[i - 2].textContent!,
+    });
   }
-  remainingElementsLength = filterElementsArray.length;
-  const elementsToFilter = allElements.filter(
-    (e) => !filterElementsArray.includes(e)
-  ); // elements from allElements that are not present in filterElementsArray
-  return elementsToFilter;
+  return carObjList;
+}
+
+let REMAINING_ELEMENTS = 0;
+function hideElement(
+  element: HTMLElement,
+  title: string,
+  filterValue: string
+): void {
+  const filterElement = findClosestAncestorWithClass(
+    element,
+    "tablereset"
+  ) as HTMLElement;
+
+  if (!title.toLowerCase().includes(filterValue.toLowerCase())) {
+    //e39 not being recognized here - if typed in bulgarian it is recognized
+    filterElement.style.display = "none";
+  } else {
+    REMAINING_ELEMENTS++;
+  }
+}
+
+async function main(request: any) {
+  const cars = await createCarObjects();
+  cars.map((car) => hideElement(car.element, car.title, request.filterValue));
 }
 
 chrome.runtime.onConnect.addListener(function (port) {
@@ -90,12 +104,10 @@ chrome.runtime.onConnect.addListener(function (port) {
     // TODO: add pagination to the filtering
     switch (request.message) {
       case "filter":
-        const elementsToFilter = await hideHTML(request.filterValue);
-        elementsToFilter.forEach((e) => (e.style.display = "none"));
-        console.log(remainingElementsLength);
+        await main(request);
         port.postMessage({
           message: "filterAmount",
-          value: remainingElementsLength,
+          value: REMAINING_ELEMENTS,
         });
         break;
       case "reload":
