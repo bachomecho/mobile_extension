@@ -73,6 +73,7 @@ async function createCarObjects(): Promise<CarElement[]> {
   return carObjList;
 }
 
+let REMAINING_ELEMENTS = 0;
 function hideElement(
   element: HTMLElement,
   title: string,
@@ -86,40 +87,14 @@ function hideElement(
   if (!title.toLowerCase().includes(filterValue.toLowerCase())) {
     //e39 not being recognized here - if typed in bulgarian it is recognized
     filterElement.style.display = "none";
+  } else {
+    REMAINING_ELEMENTS++;
   }
 }
+
 async function main(request: any) {
   const cars = await createCarObjects();
   cars.map((car) => hideElement(car.element, car.title, request.filterValue));
-}
-let remainingElementsLength: number;
-
-// const filterElement = findClosestAncestorWithClass(
-//   element,
-//   "tablereset"
-// ) as HTMLElement;
-// if (filterElement) {
-//   allElements.push(filterElement);
-// }
-// if (title.toLowerCase().includes(filterValue.toLowerCase())) {
-//   //e39 not being recognized here - if typed in bulgarian it is recognized
-//   remainElements.push(filterElement);
-// }
-// remainingElementsLength = remainElements.length;
-// const elementsToFilter = allElements.filter(
-//   (e) => !remainElements.includes(e)
-// ); // elements from allElements that are not present in filterElementsArray
-// return elementsToFilter;
-
-function realhidehtml(
-  allElements: HTMLElement[],
-  remainElements: HTMLElement[]
-) {
-  remainingElementsLength = remainElements.length;
-  const elementsToFilter = allElements.filter(
-    (e) => !remainElements.includes(e)
-  ); // elements from allElements that are not present in filterElementsArray
-  return elementsToFilter;
 }
 
 chrome.runtime.onConnect.addListener(function (port) {
@@ -129,12 +104,10 @@ chrome.runtime.onConnect.addListener(function (port) {
     // TODO: add pagination to the filtering
     switch (request.message) {
       case "filter":
-        const elementsToFilter = await hideHTML(request.filterValue);
-        elementsToFilter.forEach((e) => (e.style.display = "none"));
-        console.log(remainingElementsLength);
+        await main(request);
         port.postMessage({
           message: "filterAmount",
-          value: remainingElementsLength,
+          value: REMAINING_ELEMENTS,
         });
         break;
       case "reload":
