@@ -25,8 +25,9 @@ function executeFilter() {
       document.getElementById("count")!.innerText = response.value;
   });
 }
-function reloadPage() {
-  port.postMessage({ type: "popuprequest", message: "reload" });
+function removeFilter() {
+  port.postMessage({ type: "popuprequest", message: "removefilter" });
+  document.getElementById("count")!.innerText = "0";
 }
 
 filterButton?.addEventListener("click", executeFilter, false);
@@ -36,4 +37,4 @@ document.addEventListener("keypress", function (e) {
     executeFilter();
   }
 });
-removeFilterButton?.addEventListener("click", reloadPage);
+removeFilterButton?.addEventListener("click", removeFilter);

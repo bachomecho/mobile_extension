@@ -1,5 +1,3 @@
-// BUG: connection port is lost after removing filter(page reload)
-
 interface CarElement {
   element: HTMLElement;
   title: string;
@@ -110,14 +108,16 @@ chrome.runtime.onConnect.addListener(function (port) {
       switch (request.message) {
         case "filter":
           await filterCars(request);
+          console.log(REMAINING_ELEMENTS);
           port.postMessage({
             type: "filterResponseContent",
             message: "filterAmount",
             value: REMAINING_ELEMENTS,
           });
+          REMAINING_ELEMENTS = 0;
           break;
-        case "reload":
-          filteredElements.map((element) => (element.style.display = "inline"));
+        case "removefilter":
+          filteredElements.map((element) => (element.style.display = "block"));
           break;
         default:
           console.log("No message from popup.");
