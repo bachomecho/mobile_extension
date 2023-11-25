@@ -1,24 +1,32 @@
+// initialize port
+let port: chrome.runtime.Port;
+chrome.tabs.query({ active: true, currentWindow: true }, async function (tabs) {
+  port = chrome.tabs.connect(tabs[0].id as number, {
+    name: "MOBILE_POPUP",
+  });
+  port.postMessage({ message: "connectToContentScript" });
+});
+
 // get elements
 const inputElement = document.getElementById("filtervalue") as HTMLInputElement;
 inputElement.focus();
 const filterButton = document.getElementById("filterbutton");
 const removeFilterButton = document.getElementById("removefilter");
 
-// init port
-let port: chrome.runtime.Port;
-chrome.tabs.query({ active: true, currentWindow: true }, async function (tabs) {
-  port = chrome.tabs.connect(tabs[0].id as number, { name: "MOBILE_POPUP" });
-});
-
 // button functions
 function executeFilter() {
-  port.postMessage({ message: "filter", filterValue: inputElement.value });
+  port.postMessage({
+    type: "popuprequest",
+    message: "filter",
+    filterValue: inputElement.value,
+  });
   port.onMessage.addListener(function (response) {
-    document.getElementById("count")!.innerText = response.value;
+    if (response.type === "filterResponseContent")
+      document.getElementById("count")!.innerText = response.value;
   });
 }
 function reloadPage() {
-  port.postMessage({ message: "reload" });
+  port.postMessage({ type: "popuprequest", message: "reload" });
 }
 
 filterButton?.addEventListener("click", executeFilter, false);

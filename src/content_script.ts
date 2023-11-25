@@ -1,3 +1,5 @@
+// BUG: connection port is lost after removing filter(page reload)
+
 interface CarElement {
   element: HTMLElement;
   title: string;
@@ -73,6 +75,7 @@ async function createCarObjects(): Promise<CarElement[]> {
   return carObjList;
 }
 
+let filteredElements: Array<HTMLElement> = [];
 let REMAINING_ELEMENTS = 0;
 function hideElement(
   element: HTMLElement,
@@ -86,13 +89,14 @@ function hideElement(
 
   if (!title.toLowerCase().includes(filterValue.toLowerCase())) {
     //e39 not being recognized here - if typed in bulgarian it is recognized
+    filteredElements.push(filterElement);
     filterElement.style.display = "none";
   } else {
     REMAINING_ELEMENTS++;
   }
 }
 
-async function main(request: any) {
+async function filterCars(request: any) {
   const cars = await createCarObjects();
   cars.map((car) => hideElement(car.element, car.title, request.filterValue));
 }
@@ -102,19 +106,22 @@ chrome.runtime.onConnect.addListener(function (port) {
   console.assert(port.name === "MOBILE_POPUP");
   port.onMessage.addListener(async function (request) {
     // TODO: add pagination to the filtering
-    switch (request.message) {
-      case "filter":
-        await main(request);
-        port.postMessage({
-          message: "filterAmount",
-          value: REMAINING_ELEMENTS,
-        });
-        break;
-      case "reload":
-        window.location.reload();
-        break;
-      default:
-        console.log("No message from popup.");
+    if (request.type === "popuprequest") {
+      switch (request.message) {
+        case "filter":
+          await filterCars(request);
+          port.postMessage({
+            type: "filterResponseContent",
+            message: "filterAmount",
+            value: REMAINING_ELEMENTS,
+          });
+          break;
+        case "reload":
+          filteredElements.map((element) => (element.style.display = "inline"));
+          break;
+        default:
+          console.log("No message from popup.");
+      }
     }
   });
 });
