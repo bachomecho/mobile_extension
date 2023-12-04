@@ -25,6 +25,8 @@ function executeFilter() {
       document.getElementById("count")!.innerText = response.value;
   });
 }
+// TODO: save filtered html in the background script
+
 function removeFilter() {
   port.postMessage({ type: "popuprequest", message: "removefilter" });
   document.getElementById("count")!.innerText = "0";
