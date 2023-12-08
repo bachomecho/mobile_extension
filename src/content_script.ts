@@ -8,13 +8,15 @@ async function followLink(link: string | null): Promise<any> {
       );
     }
 
-    const htmlString = await response.text();
+    const decoder = new TextDecoder("windows-1251");
+    const buffer = await response.arrayBuffer();
+    const htmlString = decoder.decode(buffer);
     return htmlString;
   } catch (error) {
     console.error("Error fetching data:", error);
   }
 }
-function parseDom(html: string): string {
+function parseTitleFromLink(html: string): string {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, "text/html");
   // getting title from follow link
@@ -73,12 +75,13 @@ function hideElement(
 type HTMLMap = Record<number, string>;
 let filteredHTML: HTMLMap = {};
 async function createCarObjects(
-  html_text: string,
+  htmlText: string,
   filterValue: string,
   url: string
 ): Promise<void> {
   const parser = new DOMParser();
-  const doc = parser.parseFromString(html_text, "text/html");
+  const doc = parser.parseFromString(htmlText, "text/html");
+
   const titleElements = doc.getElementsByClassName("mmm"); // gets title elements
   const priceElements = doc.getElementsByClassName("price"); // gets price elements
   const carObjList = new Array<CarElement>();
@@ -91,7 +94,7 @@ async function createCarObjects(
       link = element.getAttribute("href");
       const html = await followLink(link);
       // TODO: cache textcontents here: followlink requests html everytime
-      textContent = parseDom(html);
+      textContent = parseTitleFromLink(html);
     }
     carObjList.push({
       element: element,
@@ -100,11 +103,9 @@ async function createCarObjects(
     });
   }
   carObjList.forEach((car) => hideElement(car.element, car.title, filterValue));
+
   const lastUrlChar = parseInt(url.charAt(url.length - 1));
 
-  const metaTag = doc.getElementsByTagName("meta");
-  console.log("Meta Tag: ");
-  console.log(metaTag);
   filteredHTML[lastUrlChar] = doc.getElementsByTagName("tbody")[1].outerHTML;
 }
 
@@ -115,33 +116,6 @@ function createPaginationUrls(): string[] {
   }
   return paginationUrls;
 }
-
-// async function extractHTML(urls: string[]): Promise<string[]> {
-//   console.log(urls);
-//   let htmlTexts: string[] = [];
-//   urls.forEach(async (url) => {
-//     const response = await fetch(url);
-//     const html = await response.text();
-//     htmlTexts.push(html);
-//   });
-//   console.log(htmlTexts);
-//   return htmlTexts;
-// }
-
-// type filteredPage = { [pageNum: string]: HTMLElement };
-// async function filterPages(request: any): Promise<filteredPage> {
-//   console.log("filterPages function");
-//   const filteredPages: filteredPage = {};
-//   const urls = createPaginationUrls();
-//   for (const url of urls) {
-//     console.log(url);
-//     const cars = await createCarObjects(url);
-//     cars.map((car) => hideElement(car.element, car.title, request.filterValue));
-//     filteredPages[url.charAt(url.length - 1)] =
-//       document.querySelectorAll("tbody")[1];
-//   }
-//   return filteredPages;
-// }
 
 chrome.runtime.onConnect.addListener(function (port) {
   console.log("Connected");
@@ -158,8 +132,10 @@ chrome.runtime.onConnect.addListener(function (port) {
           await Promise.all(
             urls.map(async (url) => {
               const response = await fetch(url);
-              const html = await response.text();
-              await createCarObjects(html, request.filterValue, url);
+              const decoder = new TextDecoder("windows-1251");
+              const buffer = await response.arrayBuffer();
+              const htmlString = decoder.decode(buffer);
+              await createCarObjects(htmlString, request.filterValue, url);
             })
           );
           contentPort.postMessage({
