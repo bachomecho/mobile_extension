@@ -12,6 +12,8 @@ const inputElement = document.getElementById("filtervalue") as HTMLInputElement;
 inputElement.focus();
 const filterButton = document.getElementById("filterbutton");
 const removeFilterButton = document.getElementById("removefilter");
+const previousPageButton = document.getElementById("previouspage");
+const nextPageButton = document.getElementById("nextpage");
 
 // button functions
 function executeFilter() {
@@ -25,13 +27,13 @@ function executeFilter() {
       document.getElementById("count")!.innerText = response.value;
   });
 }
-// TODO: save filtered html in the background script
 
 function removeFilter() {
   port.postMessage({ type: "popuprequest", message: "removefilter" });
   document.getElementById("count")!.innerText = "0";
 }
 
+// adding button functionality
 filterButton?.addEventListener("click", executeFilter, false);
 document.addEventListener("keypress", function (e) {
   if (e.key === "Enter") {
@@ -39,4 +41,11 @@ document.addEventListener("keypress", function (e) {
     executeFilter();
   }
 });
+
 removeFilterButton?.addEventListener("click", removeFilter);
+previousPageButton?.addEventListener("click", function (e) {
+  port.postMessage({ type: "popuprequest", message: "previouspage" });
+});
+nextPageButton?.addEventListener("click", function (e) {
+  port.postMessage({ type: "popuprequest", message: "nextpage" });
+});

@@ -70,15 +70,13 @@ function hideElement(
   }
 }
 
-type HTMLMap = Record<string, string>;
+type HTMLMap = Record<number, string>;
 let filteredHTML: HTMLMap = {};
 async function createCarObjects(
   html_text: string,
   filterValue: string,
   url: string
 ): Promise<void> {
-  console.log("creating car objects");
-  console.log(html_text);
   const parser = new DOMParser();
   const doc = parser.parseFromString(html_text, "text/html");
   const titleElements = doc.getElementsByClassName("mmm"); // gets title elements
@@ -102,9 +100,12 @@ async function createCarObjects(
     });
   }
   carObjList.forEach((car) => hideElement(car.element, car.title, filterValue));
-  const lastUrlChar = url.charAt(url.length - 1);
-  filteredHTML[lastUrlChar] =
-    document.getElementsByTagName("tbody")[1].innerHTML;
+  const lastUrlChar = parseInt(url.charAt(url.length - 1));
+
+  const metaTag = doc.getElementsByTagName("meta");
+  console.log("Meta Tag: ");
+  console.log(metaTag);
+  filteredHTML[lastUrlChar] = doc.getElementsByTagName("tbody")[1].outerHTML;
 }
 
 function createPaginationUrls(): string[] {
@@ -112,7 +113,6 @@ function createPaginationUrls(): string[] {
   for (let i = 1; i <= 3; i++) {
     paginationUrls.push(window.location.href.replace(/.$/, i.toString()));
   }
-  console.log("here are the pagination urls: ");
   return paginationUrls;
 }
 
@@ -146,13 +146,14 @@ function createPaginationUrls(): string[] {
 chrome.runtime.onConnect.addListener(function (port) {
   console.log("Connected");
   console.assert(port.name === "MOBILE_POPUP");
+  const contentPort = chrome.runtime.connect({
+    name: "content_background_channel",
+  });
   port.onMessage.addListener(async function (request) {
     // TODO: create a union type for request states (successful, error, etc.)
-    // TODO: add pagination to the filtering
     if (request.type === "popuprequest") {
       switch (request.message) {
         case "filter":
-          // TODO: send object with page index and filtered page to popup.ts
           const urls = createPaginationUrls();
           await Promise.all(
             urls.map(async (url) => {
@@ -161,16 +162,50 @@ chrome.runtime.onConnect.addListener(function (port) {
               await createCarObjects(html, request.filterValue, url);
             })
           );
+          contentPort.postMessage({
+            type: "toBackground",
+            objects: filteredHTML,
+          });
+          contentPort.onMessage.addListener((response, _contentPort) => {
+            const meta = document.querySelector("meta");
+            if (meta) {
+              console.log("Setting meta tag attribute.");
+              meta.setAttribute("content", "text/html; charset=UTF-8");
+            } else {
+              console.log("No meta tag.");
+            }
+            document.getElementsByTagName("tbody")[1].outerHTML = response.html;
+          });
+
           port.postMessage({
             type: "filterResponseContent",
             message: "filterAmount",
-            filteredObj: filteredHTML,
             value: REMAINING_ELEMENTS,
           });
           REMAINING_ELEMENTS = 0;
           break;
         case "removefilter":
           filteredElements.map((element) => (element.style.display = "block"));
+          break;
+        case "previouspage":
+          contentPort.postMessage({
+            type: "pagination",
+            message: "decrementCurrentPage",
+          });
+          contentPort.onMessage.addListener(
+            (response, _contentPort) =>
+              (document.getElementsByTagName("tbody")[1].outerHTML =
+                response.html)
+          );
+          break;
+        case "nextpage":
+          contentPort.postMessage({
+            type: "pagination",
+            message: "incrementCurrentPage",
+          });
+          contentPort.onMessage.addListener((response, _contentPort) => {
+            document.getElementsByTagName("tbody")[1].outerHTML = response.html;
+          });
           break;
         default:
           console.log("No message from popup.");
