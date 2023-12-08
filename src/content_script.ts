@@ -143,13 +143,6 @@ chrome.runtime.onConnect.addListener(function (port) {
             objects: filteredHTML,
           });
           contentPort.onMessage.addListener((response, _contentPort) => {
-            const meta = document.querySelector("meta");
-            if (meta) {
-              console.log("Setting meta tag attribute.");
-              meta.setAttribute("content", "text/html; charset=UTF-8");
-            } else {
-              console.log("No meta tag.");
-            }
             document.getElementsByTagName("tbody")[1].outerHTML = response.html;
           });
 
