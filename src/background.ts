@@ -17,26 +17,25 @@ chrome.runtime.onConnect.addListener(function (port) {
         currentUrl = tabs[0].url;
         if (currentUrl) {
           currentPage = parseInt(currentUrl.charAt(currentUrl.length - 1));
-          console.log("Current filtered page is: " + currentPage.toString());
           sendHtml(currentPage, port);
         }
       });
     }
     if (request.type === "pagination") {
       if (request.message === "incrementCurrentPage") {
-        console.log("Current filtered page is: " + currentPage.toString());
-        if (currentPage > 3) {
+        if (currentPage >= 3) {
           console.log("Already at last page.");
         } else {
+          console.log("Current page is: ", currentPage.toString());
           currentPage++;
           sendHtml(currentPage, port);
         }
       }
       if (request.message === "decrementCurrentPage") {
-        console.log("Current filtered page is: " + currentPage.toString());
-        if (currentPage < 1) {
+        if (currentPage <= 1) {
           console.log("Already at first page.");
         } else {
+          console.log("Current page is: ", currentPage.toString());
           currentPage--;
           sendHtml(currentPage, port);
         }
