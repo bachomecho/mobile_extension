@@ -1,27 +1,22 @@
-interface CarElement {
-  element: HTMLElement;
-  title: string;
-  price: string;
-  currency?: string;
-}
-
 async function followLink(link: string | null): Promise<any> {
   try {
     const response = await fetch(link);
 
     if (!response.ok) {
       throw new Error(
-        `Failed to fetch: ${response.status} ${response.statusText}`
+        `Failed to fetch longer title of listing: ${response.status} ${response.statusText}`
       );
     }
 
-    const htmlString = await response.text();
+    const decoder = new TextDecoder("windows-1251");
+    const buffer = await response.arrayBuffer();
+    const htmlString = decoder.decode(buffer);
     return htmlString;
   } catch (error) {
     console.error("Error fetching data:", error);
   }
 }
-function parseDom(html: string): string {
+function parseTitleFromLink(html: string): string {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, "text/html");
   // getting title from follow link
@@ -49,28 +44,11 @@ function findClosestAncestorWithClass(element: Element, className: string) {
   return null;
 }
 
-async function createCarObjects(): Promise<CarElement[]> {
-  const titleElements = document.getElementsByClassName("mmm"); // gets title elements
-  const priceElements = document.getElementsByClassName("price");
-  const carObjList = new Array<CarElement>();
-  for (let i = 2; i < titleElements.length; i++) {
-    // first two elements with class mmm are not car elements so they are skipped over
-    const element = titleElements[i] as HTMLElement;
-    let textContent = element.textContent ?? "empty";
-    let link: string | null = "";
-    if (textContent.includes("...")) {
-      link = element.getAttribute("href");
-      const html = await followLink(link);
-      // TODO: cache textcontents here: followlink requests html everytime
-      textContent = parseDom(html);
-    }
-    carObjList.push({
-      element: element,
-      title: textContent,
-      price: priceElements[i - 2].textContent!,
-    });
-  }
-  return carObjList;
+interface CarElement {
+  element: HTMLElement;
+  title: string;
+  price: string;
+  currency?: string;
 }
 
 let filteredElements: Array<HTMLElement> = [];
@@ -86,7 +64,7 @@ function hideElement(
   ) as HTMLElement;
 
   if (!title.toLowerCase().includes(filterValue.toLowerCase())) {
-    //e39 not being recognized here - if typed in bulgarian it is recognized
+    //NOTE: e39 not being recognized here - if typed in bulgarian it is recognized
     filteredElements.push(filterElement);
     filterElement.style.display = "none";
   } else {
@@ -94,21 +72,86 @@ function hideElement(
   }
 }
 
-async function filterCars(request: any) {
-  const cars = await createCarObjects();
-  cars.map((car) => hideElement(car.element, car.title, request.filterValue));
+type HTMLMap = Record<number, string>;
+let filteredHTML: HTMLMap = {};
+async function createCarObjects(
+  htmlText: string,
+  filterValue: string,
+  url: string
+): Promise<void> {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(htmlText, "text/html");
+
+  const titleElements = doc.getElementsByClassName("mmm"); // gets title elements
+  const priceElements = doc.getElementsByClassName("price"); // gets price elements
+  const carObjList = new Array<CarElement>();
+  for (let i = 2; i < titleElements.length; i++) {
+    // first two elements with class mmm are not car elements so they are skipped over
+    const element = titleElements[i] as HTMLElement;
+    let textContent = element.textContent ?? "empty";
+    let link: string | null = "";
+    if (textContent.includes("...")) {
+      link = element.getAttribute("href");
+      const html = await followLink(link);
+      textContent = parseTitleFromLink(html);
+    }
+    carObjList.push({
+      element: element,
+      title: textContent,
+      price: priceElements[i - 2].textContent!,
+    });
+  }
+  carObjList.forEach((car) => hideElement(car.element, car.title, filterValue));
+
+  const lastUrlChar = parseInt(url.charAt(url.length - 1));
+
+  filteredHTML[lastUrlChar] = doc.getElementsByTagName("tbody")[1].outerHTML;
+}
+
+function createPaginationUrls(): string[] {
+  let paginationUrls = new Array<string>();
+  for (let i = 1; i <= 3; i++) {
+    paginationUrls.push(window.location.href.replace(/.$/, i.toString()));
+  }
+  return paginationUrls;
+}
+
+function contentBackgroundCommunication(
+  port: chrome.runtime.Port,
+  request_type: string,
+  request_message: string | HTMLMap
+): void {
+  port.postMessage({ type: request_type, message: request_message });
+  port.onMessage.addListener((response, _port) => {
+    document.getElementsByTagName("tbody")[1].outerHTML = response.html;
+  });
 }
 
 chrome.runtime.onConnect.addListener(function (port) {
-  console.log("Connected");
   console.assert(port.name === "MOBILE_POPUP");
+  const contentPort = chrome.runtime.connect({
+    name: "content_background_channel",
+  });
   port.onMessage.addListener(async function (request) {
-    // TODO: add pagination to the filtering
+    // TODO: create a union type for request states (successful, error, etc.)
     if (request.type === "popuprequest") {
       switch (request.message) {
         case "filter":
-          await filterCars(request);
-          console.log(REMAINING_ELEMENTS);
+          const urls = createPaginationUrls();
+          await Promise.all(
+            urls.map(async (url) => {
+              const response = await fetch(url);
+              const decoder = new TextDecoder("windows-1251");
+              const buffer = await response.arrayBuffer();
+              const htmlString = decoder.decode(buffer);
+              await createCarObjects(htmlString, request.filterValue, url);
+            })
+          );
+          contentBackgroundCommunication(
+            contentPort,
+            "filtering",
+            filteredHTML
+          );
           port.postMessage({
             type: "filterResponseContent",
             message: "filterAmount",
@@ -118,6 +161,20 @@ chrome.runtime.onConnect.addListener(function (port) {
           break;
         case "removefilter":
           filteredElements.map((element) => (element.style.display = "block"));
+          break;
+        case "previouspage":
+          contentBackgroundCommunication(
+            contentPort,
+            "pagination",
+            "decrementCurrentPage"
+          );
+          break;
+        case "nextpage":
+          contentBackgroundCommunication(
+            contentPort,
+            "pagination",
+            "incrementCurrentPage"
+          );
           break;
         default:
           console.log("No message from popup.");
