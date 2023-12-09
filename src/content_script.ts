@@ -64,7 +64,7 @@ function hideElement(
   ) as HTMLElement;
 
   if (!title.toLowerCase().includes(filterValue.toLowerCase())) {
-    //e39 not being recognized here - if typed in bulgarian it is recognized
+    //NOTE: e39 not being recognized here - if typed in bulgarian it is recognized
     filteredElements.push(filterElement);
     filterElement.style.display = "none";
   } else {
@@ -93,7 +93,6 @@ async function createCarObjects(
     if (textContent.includes("...")) {
       link = element.getAttribute("href");
       const html = await followLink(link);
-      // TODO: cache textcontents here: followlink requests html everytime
       textContent = parseTitleFromLink(html);
     }
     carObjList.push({
@@ -117,8 +116,18 @@ function createPaginationUrls(): string[] {
   return paginationUrls;
 }
 
+function contentBackgroundCommunication(
+  port: chrome.runtime.Port,
+  request_type: string,
+  request_message: string | HTMLMap
+): void {
+  port.postMessage({ type: request_type, message: request_message });
+  port.onMessage.addListener((response, _port) => {
+    document.getElementsByTagName("tbody")[1].outerHTML = response.html;
+  });
+}
+
 chrome.runtime.onConnect.addListener(function (port) {
-  console.log("Connected");
   console.assert(port.name === "MOBILE_POPUP");
   const contentPort = chrome.runtime.connect({
     name: "content_background_channel",
@@ -138,14 +147,11 @@ chrome.runtime.onConnect.addListener(function (port) {
               await createCarObjects(htmlString, request.filterValue, url);
             })
           );
-          contentPort.postMessage({
-            type: "toBackground",
-            objects: filteredHTML,
-          });
-          contentPort.onMessage.addListener((response, _contentPort) => {
-            document.getElementsByTagName("tbody")[1].outerHTML = response.html;
-          });
-
+          contentBackgroundCommunication(
+            contentPort,
+            "filtering",
+            filteredHTML
+          );
           port.postMessage({
             type: "filterResponseContent",
             message: "filterAmount",
@@ -157,24 +163,18 @@ chrome.runtime.onConnect.addListener(function (port) {
           filteredElements.map((element) => (element.style.display = "block"));
           break;
         case "previouspage":
-          contentPort.postMessage({
-            type: "pagination",
-            message: "decrementCurrentPage",
-          });
-          contentPort.onMessage.addListener(
-            (response, _contentPort) =>
-              (document.getElementsByTagName("tbody")[1].outerHTML =
-                response.html)
+          contentBackgroundCommunication(
+            contentPort,
+            "pagination",
+            "decrementCurrentPage"
           );
           break;
         case "nextpage":
-          contentPort.postMessage({
-            type: "pagination",
-            message: "incrementCurrentPage",
-          });
-          contentPort.onMessage.addListener((response, _contentPort) => {
-            document.getElementsByTagName("tbody")[1].outerHTML = response.html;
-          });
+          contentBackgroundCommunication(
+            contentPort,
+            "pagination",
+            "incrementCurrentPage"
+          );
           break;
         default:
           console.log("No message from popup.");
