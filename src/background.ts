@@ -10,7 +10,7 @@ chrome.runtime.onConnect.addListener(function (port) {
   console.assert(port.name === "content_background_channel");
   port.onMessage.addListener(async function (request) {
     if (request.type === "filtering") {
-      htmlObjects = JSON.parse(request.message);
+      htmlObjects = request.message;
       chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
         currentUrl = tabs[0].url;
         if (currentUrl) {
