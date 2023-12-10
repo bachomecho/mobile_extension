@@ -1,3 +1,4 @@
+let exactFilterState = false;
 // initialize port
 let port: chrome.runtime.Port;
 chrome.tabs.query({ active: true, currentWindow: true }, async function (tabs) {
@@ -11,17 +12,26 @@ chrome.tabs.query({ active: true, currentWindow: true }, async function (tabs) {
 const inputElement = document.getElementById("filtervalue") as HTMLInputElement;
 inputElement.focus();
 const filterButton = document.getElementById("filterbutton");
+const exactFilterButton = document.getElementById("exactfilterbutton");
 const removeFilterButton = document.getElementById("removefilter");
 const previousPageButton = document.getElementById("previouspage");
 const nextPageButton = document.getElementById("nextpage");
 
 // button functions
 function executeFilter() {
-  port.postMessage({
-    type: "popuprequest",
-    message: "filter",
-    filterValue: inputElement.value,
-  });
+  if (exactFilterState) {
+    port.postMessage({
+      type: "popuprequest",
+      message: "exactFilter",
+      filterValue: inputElement.value,
+    });
+  } else {
+    port.postMessage({
+      type: "popuprequest",
+      message: "filter",
+      filterValue: inputElement.value,
+    });
+  }
   port.onMessage.addListener(function (response) {
     if (response.type === "filterResponseContent")
       document.getElementById("count")!.innerText = response.value;
@@ -42,6 +52,15 @@ document.addEventListener("keypress", function (e) {
   }
 });
 
+exactFilterButton?.addEventListener(
+  "click",
+  (e) => {
+    exactFilterState = true;
+    executeFilter();
+    exactFilterState = false;
+  },
+  false
+);
 removeFilterButton?.addEventListener("click", removeFilter);
 previousPageButton?.addEventListener("click", function (e) {
   port.postMessage({ type: "popuprequest", message: "previouspage" });

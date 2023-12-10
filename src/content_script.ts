@@ -56,19 +56,34 @@ let REMAINING_ELEMENTS = 0;
 function hideElement(
   element: HTMLElement,
   title: string,
-  filterValue: string
+  filterValue: string,
+  exactSearch: boolean
 ): void {
   const filterElement = findClosestAncestorWithClass(
     element,
     "tablereset"
   ) as HTMLElement;
 
-  if (!title.toLowerCase().includes(filterValue.toLowerCase())) {
-    //NOTE: e39 not being recognized here - if typed in bulgarian it is recognized
-    filteredElements.push(filterElement);
-    filterElement.style.display = "none";
-  } else {
-    REMAINING_ELEMENTS++;
+  switch (exactSearch) {
+    case true:
+      if (!title.toLowerCase().includes(filterValue.toLowerCase())) {
+        //NOTE: e39 not being recognized here - if typed in bulgarian it is recognized
+        filteredElements.push(filterElement);
+        filterElement.style.display = "none";
+      } else {
+        REMAINING_ELEMENTS++;
+      }
+    case false:
+      const titleNoWhitespace = title.replace(/\s/g, "");
+      console.log(titleNoWhitespace);
+      if (
+        !titleNoWhitespace.toLowerCase().includes(filterValue.toLowerCase())
+      ) {
+        filteredElements.push(filterElement);
+        filterElement.style.display = "none";
+      } else {
+        REMAINING_ELEMENTS++;
+      }
   }
 }
 
@@ -77,6 +92,7 @@ let filteredHTML: HTMLMap = {};
 async function createCarObjects(
   htmlText: string,
   filterValue: string,
+  exactSearch: boolean,
   url: string
 ): Promise<void> {
   const parser = new DOMParser();
@@ -101,7 +117,9 @@ async function createCarObjects(
       price: priceElements[i - 2].textContent!,
     });
   }
-  carObjList.forEach((car) => hideElement(car.element, car.title, filterValue));
+  carObjList.forEach((car) =>
+    hideElement(car.element, car.title, filterValue, exactSearch)
+  );
 
   const lastUrlChar = parseInt(url.charAt(url.length - 1));
 
@@ -127,6 +145,35 @@ function contentBackgroundCommunication(
   });
 }
 
+async function filtering(
+  contentBackgroundPort: chrome.runtime.Port,
+  popupContentPort: chrome.runtime.Port,
+  filterValue: string,
+  exactFilter: boolean
+): Promise<void> {
+  const urls = createPaginationUrls();
+  await Promise.all(
+    urls.map(async (url) => {
+      const response = await fetch(url);
+      const decoder = new TextDecoder("windows-1251");
+      const buffer = await response.arrayBuffer();
+      const htmlString = decoder.decode(buffer);
+      await createCarObjects(htmlString, filterValue, exactFilter, url);
+    })
+  );
+  contentBackgroundCommunication(
+    contentBackgroundPort,
+    "filtering",
+    JSON.stringify(filteredHTML)
+  );
+  popupContentPort.postMessage({
+    type: "filterResponseContent",
+    message: "filterAmount",
+    value: REMAINING_ELEMENTS,
+  });
+  REMAINING_ELEMENTS = 0;
+}
+
 chrome.runtime.onConnect.addListener(function (port) {
   console.assert(port.name === "MOBILE_POPUP");
   const contentPort = chrome.runtime.connect({
@@ -137,27 +184,10 @@ chrome.runtime.onConnect.addListener(function (port) {
     if (request.type === "popuprequest") {
       switch (request.message) {
         case "filter":
-          const urls = createPaginationUrls();
-          await Promise.all(
-            urls.map(async (url) => {
-              const response = await fetch(url);
-              const decoder = new TextDecoder("windows-1251");
-              const buffer = await response.arrayBuffer();
-              const htmlString = decoder.decode(buffer);
-              await createCarObjects(htmlString, request.filterValue, url);
-            })
-          );
-          contentBackgroundCommunication(
-            contentPort,
-            "filtering",
-            filteredHTML
-          );
-          port.postMessage({
-            type: "filterResponseContent",
-            message: "filterAmount",
-            value: REMAINING_ELEMENTS,
-          });
-          REMAINING_ELEMENTS = 0;
+          await filtering(contentPort, port, request.filterValue, false);
+          break;
+        case "exactFilter":
+          await filtering(contentPort, port, request.filterValue, true);
           break;
         case "removefilter":
           filteredElements.map((element) => (element.style.display = "block"));
