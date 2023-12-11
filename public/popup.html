@@ -6,7 +6,14 @@
     <title>Mobile Extension</title>
   </head>
   <body>
-    <input id="filtervalue" placeholder="Text here" type="text" required />
+    <input
+      id="filtervalue"
+      placeholder="Text here"
+      type="text"
+      required
+      minlength="2"
+      maxlength="20"
+    />
     <button id="filterbutton">Filter</button>
     <button id="removefilter">Remove Filter</button>
     <div id="remainingelementcount">

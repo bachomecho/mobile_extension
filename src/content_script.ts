@@ -62,8 +62,8 @@ function hideElement(
     element,
     "tablereset"
   ) as HTMLElement;
-
-  if (!title.toLowerCase().includes(filterValue.toLowerCase())) {
+  const titleNoWhitespace = title.replace(/\s/g, "");
+  if (!titleNoWhitespace.toLowerCase().includes(filterValue.toLowerCase())) {
     //NOTE: e39 not being recognized here - if typed in bulgarian it is recognized
     filteredElements.push(filterElement);
     filterElement.style.display = "none";
@@ -150,7 +150,7 @@ chrome.runtime.onConnect.addListener(function (port) {
           contentBackgroundCommunication(
             contentPort,
             "filtering",
-            filteredHTML
+            JSON.stringify(filteredHTML)
           );
           port.postMessage({
             type: "filterResponseContent",
