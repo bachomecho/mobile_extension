@@ -1,4 +1,4 @@
-async function followLink(link: string | null): Promise<any> {
+async function followLink(link: string): Promise<string | undefined> {
   try {
     const response = await fetch(link);
 
@@ -89,11 +89,12 @@ async function createCarObjects(
     // first two elements with class mmm are not car elements so they are skipped over
     const element = titleElements[i] as HTMLElement;
     let textContent = element.textContent ?? "empty";
-    let link: string | null = "";
     if (textContent.includes("...")) {
-      link = element.getAttribute("href");
-      const html = await followLink(link);
-      textContent = parseTitleFromLink(html);
+      const link = element.getAttribute("href");
+      if (link) {
+        const html = await followLink(link);
+        textContent = parseTitleFromLink(html!);
+      }
     }
     carObjList.push({
       element: element,
@@ -160,9 +161,9 @@ chrome.runtime.onConnect.addListener(function (port) {
           REMAINING_ELEMENTS = 0;
           break;
         case "removefilter":
-          filteredElements.map((element) => (element.style.display = "block"));
+          filteredElements.map((element) => (element.style.display = "block")); // TODO: needs revision
           break;
-        case "previouspage":
+        case "previouspage": // TODO: these will probably become obsolete once all elements matching filter are shown on one page
           contentBackgroundCommunication(
             contentPort,
             "pagination",
