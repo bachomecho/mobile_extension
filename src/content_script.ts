@@ -1,3 +1,27 @@
+// const template = document.createElement("template");
+// template.innerHTML = `
+//         <li>
+//           ${[...obj]}
+//         </li>`;
+
+// class filteredCarListings extends HTMLElement {
+//   constructor() {
+//     super();
+
+//     this.attachShadow({ mode: "open" });
+//     this.shadowRoot?.appendChild(template.content.cloneNode(true));
+//   }
+//   set externalObject(obj: Element[]) {
+//     if (this.shadowRoot) {
+//       this.shadowRoot.innerHTML = `
+//           <li>
+//             ${[...obj]}
+//           </li>
+//         `;
+//     }
+//   }
+// }
+
 async function followLink(link: string): Promise<string | undefined> {
   try {
     const response = await fetch(link);
@@ -23,7 +47,10 @@ function parseTitleFromLink(html: string): string {
   return doc.getElementsByTagName("h1")[0].textContent!;
 }
 
-function findClosestAncestorWithClass(element: Element, className: string) {
+function findClosestAncestorWithClass(
+  element: Element,
+  className: string
+): Element | null {
   if (element.classList.contains(className)) {
     return element;
   }
@@ -39,8 +66,6 @@ function findClosestAncestorWithClass(element: Element, className: string) {
       continue;
     }
   } // this count is needed because the first element with class tablereset is the car image and not the main parent node
-
-  console.log(`ancestor element not found for ${element}`);
   return null;
 }
 
@@ -48,37 +73,32 @@ interface CarElement {
   element: HTMLElement;
   title: string;
   price: string;
-  currency?: string;
+  currency?: "лв" | "EUR";
 }
 
-let filteredElements: Array<HTMLElement> = [];
-let REMAINING_ELEMENTS = 0;
-function hideElement(
-  element: HTMLElement,
-  title: string,
+function matchElement(
+  elementArray: CarElement[],
   filterValue: string
-): void {
-  const filterElement = findClosestAncestorWithClass(
-    element,
-    "tablereset"
-  ) as HTMLElement;
-  const titleNoWhitespace = title.replace(/\s/g, "");
-  if (!titleNoWhitespace.toLowerCase().includes(filterValue.toLowerCase())) {
-    //NOTE: e39 not being recognized here - if typed in bulgarian it is recognized
-    filteredElements.push(filterElement);
-    filterElement.style.display = "none";
-  } else {
-    REMAINING_ELEMENTS++;
-  }
+): Element[] {
+  console.log(elementArray);
+  const matchArray = elementArray.filter((elem) =>
+    elem.title
+      .replace(/\s/g, "")
+      .toLowerCase()
+      .includes(filterValue.toLowerCase())
+  );
+
+  const returnElems = matchArray
+    .map((elem) => findClosestAncestorWithClass(elem.element, "tablereset"))
+    .filter((elem) => elem) as Element[];
+  console.log(returnElems);
+  return returnElems;
 }
 
-type HTMLMap = Record<number, string>;
-let filteredHTML: HTMLMap = {};
 async function createCarObjects(
   htmlText: string,
-  filterValue: string,
-  url: string
-): Promise<void> {
+  pageNumber: string
+): Promise<CarElement[]> {
   const parser = new DOMParser();
   const doc = parser.parseFromString(htmlText, "text/html");
 
@@ -87,26 +107,35 @@ async function createCarObjects(
   const carObjList = new Array<CarElement>();
   for (let i = 2; i < titleElements.length; i++) {
     // first two elements with class mmm are not car elements so they are skipped over
-    const element = titleElements[i] as HTMLElement;
-    let textContent = element.textContent ?? "empty";
+    const titleElement = titleElements[i] as HTMLElement;
+    let textContent = titleElement.textContent ?? "empty";
     if (textContent.includes("...")) {
-      const link = element.getAttribute("href");
+      const link = titleElement.getAttribute("href");
       if (link) {
         const html = await followLink(link);
         textContent = parseTitleFromLink(html!);
       }
     }
     carObjList.push({
-      element: element,
+      element: titleElement,
       title: textContent,
       price: priceElements[i - 2].textContent!,
     });
   }
-  carObjList.forEach((car) => hideElement(car.element, car.title, filterValue));
 
-  const lastUrlChar = parseInt(url.charAt(url.length - 1));
+  if (pageNumber === "1") {
+    const titleElems = document.getElementsByClassName("mmm"); // standard DOM is manipulated
 
-  filteredHTML[lastUrlChar] = doc.getElementsByTagName("tbody")[1].outerHTML;
+    for (let i = 2; i < titleElems.length; i++) {
+      const containingElement = findClosestAncestorWithClass(
+        titleElems[i],
+        "tablereset"
+      ) as HTMLElement;
+      containingElement!.style.display = "none";
+    }
+  }
+
+  return carObjList;
 }
 
 function createPaginationUrls(): string[] {
@@ -120,7 +149,7 @@ function createPaginationUrls(): string[] {
 function contentBackgroundCommunication(
   port: chrome.runtime.Port,
   request_type: string,
-  request_message: string | HTMLMap
+  request_message: string
 ): void {
   port.postMessage({ type: request_type, message: request_message });
   port.onMessage.addListener((response, _port) => {
@@ -130,52 +159,56 @@ function contentBackgroundCommunication(
 
 chrome.runtime.onConnect.addListener(function (port) {
   console.assert(port.name === "MOBILE_POPUP");
-  const contentPort = chrome.runtime.connect({
-    name: "content_background_channel",
-  });
   port.onMessage.addListener(async function (request) {
     // TODO: create a union type for request states (successful, error, etc.)
     if (request.type === "popuprequest") {
       switch (request.message) {
         case "filter":
           const urls = createPaginationUrls();
+          let generalCarObject: any[] = []; // TODO: change any type
           await Promise.all(
             urls.map(async (url) => {
               const response = await fetch(url);
               const decoder = new TextDecoder("windows-1251");
               const buffer = await response.arrayBuffer();
               const htmlString = decoder.decode(buffer);
-              await createCarObjects(htmlString, request.filterValue, url);
+              const pageNumber: string = url.charAt(url.length - 1);
+              const cars = await createCarObjects(htmlString, pageNumber);
+              generalCarObject.push(cars);
             })
           );
-          contentBackgroundCommunication(
-            contentPort,
-            "filtering",
-            JSON.stringify(filteredHTML)
+          generalCarObject = [].concat(...generalCarObject);
+          const filteredElements = matchElement(
+            generalCarObject,
+            request.filterValue
           );
+          console.log(filteredElements);
+
+          // new section
+          // console.log(filteredCarListings);
+          // window.customElements.define("filtered-cars", filteredCarListings);
+          // const filteredTable = new filteredCarListings();
+          // filteredTable.externalObject = filteredElements;
+          const carTable = document.querySelector(
+            ".tablereset.m-t-10 br:nth-of-type(2)"
+          );
+
+          filteredElements.forEach((elem) =>
+            carTable?.insertAdjacentElement("afterend", elem)
+          );
+          // break here => think about below
+          // contentBackgroundCommunication(
+          //   contentPort,
+          //   "filtering",
+          //   JSON.stringify() // TODO: what is the message here?, is content background even needed
+          // );
           port.postMessage({
             type: "filterResponseContent",
             message: "filterAmount",
-            value: REMAINING_ELEMENTS,
+            value: filteredElements.length,
           });
-          REMAINING_ELEMENTS = 0;
           break;
         case "removefilter":
-          filteredElements.map((element) => (element.style.display = "block")); // TODO: needs revision
-          break;
-        case "previouspage": // TODO: these will probably become obsolete once all elements matching filter are shown on one page
-          contentBackgroundCommunication(
-            contentPort,
-            "pagination",
-            "decrementCurrentPage"
-          );
-          break;
-        case "nextpage":
-          contentBackgroundCommunication(
-            contentPort,
-            "pagination",
-            "incrementCurrentPage"
-          );
           break;
         default:
           console.log("No message from popup.");
