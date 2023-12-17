@@ -6,7 +6,6 @@ module.exports = {
   cache: false,
   entry: {
     content_script: path.resolve(__dirname, "..", "src", "content_script.ts"),
-    background: path.resolve(__dirname, "..", "src", "background.ts"),
     popup: path.resolve(__dirname, "..", "src", "popup.ts"),
   },
   output: {

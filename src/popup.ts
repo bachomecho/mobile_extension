@@ -12,8 +12,6 @@ const inputElement = document.getElementById("filtervalue") as HTMLInputElement;
 inputElement.focus();
 const filterButton = document.getElementById("filterbutton");
 const removeFilterButton = document.getElementById("removefilter");
-const previousPageButton = document.getElementById("previouspage");
-const nextPageButton = document.getElementById("nextpage");
 
 // button functions
 function executeFilter() {
@@ -43,9 +41,3 @@ document.addEventListener("keypress", function (e) {
 });
 
 removeFilterButton?.addEventListener("click", removeFilter);
-previousPageButton?.addEventListener("click", function (e) {
-  port.postMessage({ type: "popuprequest", message: "previouspage" });
-});
-nextPageButton?.addEventListener("click", function (e) {
-  port.postMessage({ type: "popuprequest", message: "nextpage" });
-});
