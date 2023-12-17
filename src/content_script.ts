@@ -125,7 +125,6 @@ async function createCarObjects(
 
   if (pageNumber === "1") {
     const titleElems = document.getElementsByClassName("mmm"); // standard DOM is manipulated
-
     for (let i = 2; i < titleElems.length; i++) {
       const containingElement = findClosestAncestorWithClass(
         titleElems[i],
@@ -184,11 +183,6 @@ chrome.runtime.onConnect.addListener(function (port) {
           );
           console.log(filteredElements);
 
-          // new section
-          // console.log(filteredCarListings);
-          // window.customElements.define("filtered-cars", filteredCarListings);
-          // const filteredTable = new filteredCarListings();
-          // filteredTable.externalObject = filteredElements;
           const carTable = document.querySelector(
             ".tablereset.m-t-10 br:nth-of-type(2)"
           );
@@ -196,17 +190,22 @@ chrome.runtime.onConnect.addListener(function (port) {
           filteredElements.forEach((elem) =>
             carTable?.insertAdjacentElement("afterend", elem)
           );
-          // break here => think about below
-          // contentBackgroundCommunication(
-          //   contentPort,
-          //   "filtering",
-          //   JSON.stringify() // TODO: what is the message here?, is content background even needed
-          // );
+
           port.postMessage({
             type: "filterResponseContent",
             message: "filterAmount",
             value: filteredElements.length,
           });
+
+          document
+            .querySelectorAll("span.pageNumbersSelect")
+            .forEach((elem) => {
+              const paginationElem = findClosestAncestorWithClass(
+                elem,
+                "tablereset"
+              ) as HTMLElement;
+              paginationElem.style.display = "none";
+            });
           break;
         case "removefilter":
           break;
