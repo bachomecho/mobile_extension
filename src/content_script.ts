@@ -1,27 +1,3 @@
-// const template = document.createElement("template");
-// template.innerHTML = `
-//         <li>
-//           ${[...obj]}
-//         </li>`;
-
-// class filteredCarListings extends HTMLElement {
-//   constructor() {
-//     super();
-
-//     this.attachShadow({ mode: "open" });
-//     this.shadowRoot?.appendChild(template.content.cloneNode(true));
-//   }
-//   set externalObject(obj: Element[]) {
-//     if (this.shadowRoot) {
-//       this.shadowRoot.innerHTML = `
-//           <li>
-//             ${[...obj]}
-//           </li>
-//         `;
-//     }
-//   }
-// }
-
 async function followLink(link: string): Promise<string | undefined> {
   try {
     const response = await fetch(link);
@@ -123,6 +99,7 @@ async function createCarObjects(
     });
   }
 
+  // hide all car listings from first page (page will later be populated with listings that match filter)
   if (pageNumber === "1") {
     const titleElems = document.getElementsByClassName("mmm"); // standard DOM is manipulated
     for (let i = 2; i < titleElems.length; i++) {
@@ -145,17 +122,17 @@ function createPaginationUrls(): string[] {
   return paginationUrls;
 }
 
-function contentBackgroundCommunication(
-  port: chrome.runtime.Port,
-  request_type: string,
-  request_message: string
-): void {
-  port.postMessage({ type: request_type, message: request_message });
-  port.onMessage.addListener((response, _port) => {
-    document.getElementsByTagName("tbody")[1].outerHTML = response.html;
+function hidePagination(hide: "none" | "inline"): void {
+  document.querySelectorAll("span.pageNumbersSelect").forEach((elem) => {
+    const paginationElem = findClosestAncestorWithClass(
+      elem,
+      "tablereset"
+    ) as HTMLElement;
+    paginationElem.style.display = hide;
   });
 }
 
+const originalHTML = document.body.outerHTML;
 chrome.runtime.onConnect.addListener(function (port) {
   console.assert(port.name === "MOBILE_POPUP");
   port.onMessage.addListener(async function (request) {
@@ -181,7 +158,6 @@ chrome.runtime.onConnect.addListener(function (port) {
             generalCarObject,
             request.filterValue
           );
-          console.log(filteredElements);
 
           const carTable = document.querySelector(
             ".tablereset.m-t-10 br:nth-of-type(2)"
@@ -197,17 +173,12 @@ chrome.runtime.onConnect.addListener(function (port) {
             value: filteredElements.length,
           });
 
-          document
-            .querySelectorAll("span.pageNumbersSelect")
-            .forEach((elem) => {
-              const paginationElem = findClosestAncestorWithClass(
-                elem,
-                "tablereset"
-              ) as HTMLElement;
-              paginationElem.style.display = "none";
-            });
+          // remove pagination elements
+          hidePagination("none");
           break;
         case "removefilter":
+          hidePagination("inline");
+          document.body.outerHTML = originalHTML;
           break;
         default:
           console.log("No message from popup.");
