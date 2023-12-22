@@ -1,15 +1,33 @@
-- [TODO](#todo)
+- [Purpose of this project](#purpose-of-this-project)
+- [Setup](#setup)
+- [How does the code work?](#how-does-the-code-work)
+- [How to test the code in the browser?](#how-to-test-the-code-in-the-browser)
 - [Next Steps](#next-steps)
 
-# TODO
+## Purpose of this project
 
-- [x] hide all elements that do not contain filtervalue
-- [x] remove filter button
-- [x] show how many elements remain after filter
-- [ ] add pagination for filtering
+The purpose of this project is to have free text querying on www.mobile.bg so users can narrow down the search beyond the already existing filters. This tries to emulate the free text querying functionality found on www.mobile.de.
 
-# Next Steps
+![image](./docs/images/mobile_de.jpg "Mobile DE Filter")
 
-- tailwind for styling?
+## Setup
+
+```bash
+npm i --save-dev
+npm run build
+```
+
+The code is bundled using webpack
+
+```json
+"build": "webpack --config webpack/webpack.config.js"
+```
+
+## How does the code work?
+
+## How to test the code in the browser?
+
+## Next Steps
+
 - average price for search
-- export results to csv?
+- export results to csv
