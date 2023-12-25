@@ -167,12 +167,14 @@ chrome.runtime.onConnect.addListener(function (port) {
             carTable?.insertAdjacentElement("afterend", elem)
           );
 
-          port.postMessage({
-            type: "filterResponseContent",
-            message: "filterAmount",
-            value: filteredElements.length,
-          });
-
+          console.log("filtered elems length: ", filteredElements.length);
+          console.log(
+            "filtered elems length type: ",
+            typeof filteredElements.length
+          );
+          chrome.storage.local.set({ filterAmount: filteredElements.length });
+          setTimeout(() => console.log("timeout for 1 second"), 1000);
+          port.postMessage({ message: "filterAmountStored" });
           // remove pagination elements
           hidePagination("none");
           break;

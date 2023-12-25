@@ -1,10 +1,18 @@
 // initialize port
+let filteredAmount = 0;
 let port: chrome.runtime.Port;
+
 chrome.tabs.query({ active: true, currentWindow: true }, async function (tabs) {
   port = chrome.tabs.connect(tabs[0].id as number, {
     name: "MOBILE_POPUP",
   });
   port.postMessage({ message: "connectToContentScript" });
+});
+
+// getting filteramount on extension startup or repeated open
+chrome.storage.local.get(["filterAmount"], function (result) {
+  console.log("stored value: ", result.filterAmount);
+  document.getElementById("count")!.innerText = result.filterAmount;
 });
 
 // get elements
@@ -20,9 +28,14 @@ function executeFilter() {
     message: "filter",
     filterValue: inputElement.value,
   });
+
   port.onMessage.addListener(function (response) {
-    if (response.type === "filterResponseContent")
-      document.getElementById("count")!.innerText = response.value;
+    if (response.message == "filterAmountStored") {
+      chrome.storage.local.get(["filterAmount"], function (result) {
+        console.log("stored value: ", result.filterAmount);
+        document.getElementById("count")!.innerText = result.filterAmount;
+      });
+    }
   });
 }
 
