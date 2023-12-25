@@ -11,7 +11,6 @@ chrome.tabs.query({ active: true, currentWindow: true }, async function (tabs) {
 
 // getting filteramount on extension startup or repeated open
 chrome.storage.local.get(["filterAmount"], function (result) {
-  console.log("stored value: ", result.filterAmount);
   document.getElementById("count")!.innerText = result.filterAmount;
 });
 
@@ -32,7 +31,6 @@ function executeFilter() {
   port.onMessage.addListener(function (response) {
     if (response.message == "filterAmountStored") {
       chrome.storage.local.get(["filterAmount"], function (result) {
-        console.log("stored value: ", result.filterAmount);
         document.getElementById("count")!.innerText = result.filterAmount;
       });
     }
@@ -48,7 +46,6 @@ function removeFilter() {
 filterButton?.addEventListener("click", executeFilter, false);
 document.addEventListener("keypress", function (e) {
   if (e.key === "Enter") {
-    console.log("enter works!");
     executeFilter();
   }
 });
