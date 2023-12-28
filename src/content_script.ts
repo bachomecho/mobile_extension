@@ -1,3 +1,5 @@
+const originalHTML = document.documentElement.cloneNode(true); // deep clone of the original DOM
+
 async function followLink(link: string): Promise<string | undefined> {
   try {
     const response = await fetch(link);
@@ -56,7 +58,6 @@ function matchElement(
   elementArray: CarElement[],
   filterValue: string
 ): Element[] {
-  console.log(elementArray);
   const matchArray = elementArray.filter((elem) =>
     elem.title
       .replace(/\s/g, "")
@@ -67,7 +68,6 @@ function matchElement(
   const returnElems = matchArray
     .map((elem) => findClosestAncestorWithClass(elem.element, "tablereset"))
     .filter((elem) => elem) as Element[];
-  console.log(returnElems);
   return returnElems;
 }
 
@@ -115,8 +115,15 @@ async function createCarObjects(
 }
 
 function createPaginationUrls(): string[] {
+  let pagesString: string =
+    document
+      .getElementsByClassName("pageNumbersInfo")[0]
+      .textContent?.split(" ")
+      .at(-1) ?? "0";
+  const numPages = parseInt(pagesString);
+
   let paginationUrls = new Array<string>();
-  for (let i = 1; i <= 3; i++) {
+  for (let i = 1; i <= numPages; i++) {
     paginationUrls.push(window.location.href.replace(/.$/, i.toString()));
   }
   return paginationUrls;
@@ -132,7 +139,6 @@ function hidePagination(hide: "none" | "inline"): void {
   });
 }
 
-const originalHTML = document.body.outerHTML;
 chrome.runtime.onConnect.addListener(function (port) {
   console.assert(port.name === "MOBILE_POPUP");
   port.onMessage.addListener(async function (request) {
@@ -153,6 +159,7 @@ chrome.runtime.onConnect.addListener(function (port) {
               generalCarObject.push(cars);
             })
           );
+          // organise this in a function
           generalCarObject = [].concat(...generalCarObject);
           const filteredElements = matchElement(
             generalCarObject,
@@ -168,7 +175,7 @@ chrome.runtime.onConnect.addListener(function (port) {
           );
 
           chrome.storage.local.set({ filterAmount: filteredElements.length });
-          setTimeout(() => console.log("timeout for 0.5 second"), 500);
+          setTimeout(() => console.log("Waiting for half a second."), 500); // local storage seems to need a little bit of time to update?
           port.postMessage({ message: "filterAmountStored" });
 
           // remove pagination elements
@@ -176,7 +183,7 @@ chrome.runtime.onConnect.addListener(function (port) {
           break;
         case "removefilter":
           hidePagination("inline");
-          document.body.outerHTML = originalHTML;
+          document.documentElement.replaceChild(originalHTML, document.body);
           break;
         default:
           console.log("No message from popup.");
