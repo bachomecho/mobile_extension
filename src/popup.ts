@@ -1,5 +1,4 @@
 // initialize port
-let filteredAmount = 0;
 let port: chrome.runtime.Port;
 
 chrome.tabs.query({ active: true, currentWindow: true }, async function (tabs) {
@@ -40,6 +39,7 @@ function executeFilter() {
 function removeFilter() {
   port.postMessage({ type: "popuprequest", message: "removefilter" });
   document.getElementById("count")!.innerText = "0";
+  chrome.storage.local.set({ filterAmount: 0 });
 }
 
 // adding button functionality

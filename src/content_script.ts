@@ -170,10 +170,12 @@ chrome.runtime.onConnect.addListener(function (port) {
             ".tablereset.m-t-10 br:nth-of-type(2)"
           );
 
+          // popluate first page with filtered elements
           filteredElements.forEach((elem) =>
             carTable?.insertAdjacentElement("afterend", elem)
           );
 
+          // delete below after testing above
           chrome.storage.local.set({ filterAmount: filteredElements.length });
           setTimeout(() => console.log("Waiting for half a second."), 500); // local storage seems to need a little bit of time to update?
           port.postMessage({ message: "filterAmountStored" });
