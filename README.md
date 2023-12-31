@@ -2,7 +2,6 @@
 - [Setup](#setup)
 - [How does the code work?](#how-does-the-code-work)
 - [How to test the code in the browser?](#how-to-test-the-code-in-the-browser)
-- [Next Steps](#next-steps)
 
 ## Purpose of this project
 
@@ -13,7 +12,7 @@ The purpose of this project is to have free text querying on www.mobile.bg so us
 ## Setup
 
 ```bash
-npm i --save-dev
+npm i
 npm run build
 ```
 
@@ -26,8 +25,3 @@ The code is bundled using webpack
 ## How does the code work?
 
 ## How to test the code in the browser?
-
-## Next Steps
-
-- average price for search
-- export results to csv
