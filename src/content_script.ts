@@ -54,23 +54,6 @@ interface CarElement {
   currency?: "лв" | "EUR";
 }
 
-function matchElement(
-  elementArray: CarElement[],
-  filterValue: string
-): Element[] {
-  const matchArray = elementArray.filter((elem) =>
-    elem.title
-      .replace(/\s/g, "")
-      .toLowerCase()
-      .includes(filterValue.toLowerCase())
-  );
-
-  const returnElems = matchArray
-    .map((elem) => findClosestAncestorWithClass(elem.element, "tablereset"))
-    .filter((elem) => elem) as Element[];
-  return returnElems;
-}
-
 async function createCarObjects(
   htmlText: string,
   pageNumber: string
@@ -112,6 +95,43 @@ async function createCarObjects(
   }
 
   return carObjList;
+}
+
+function matchElement(
+  elementArray: CarElement[],
+  filterValue: string
+): CarElement[] {
+  const matchArray = elementArray.filter((elem) =>
+    elem.title
+      .replace(/\s/g, "")
+      .toLowerCase()
+      .includes(filterValue.toLowerCase())
+  );
+  console.log(matchArray);
+  return matchArray;
+}
+
+/**calculates the average price of the filtered elements in BGN */
+function calculateAvgPrice(elements: CarElement[]): number {
+  console.log(elements);
+  const prices: number[] = [];
+  for (let i = 0; i < elements.length; i++) {
+    const splitPrice = elements[i].price.trim().split(" ");
+    console.log("split price: ", splitPrice);
+    console.log("split price sliced: ", splitPrice.slice(0, 2).join(""));
+    const numPrice = parseInt(splitPrice.slice(0, 2).join(""));
+    const currency = splitPrice.at(-1);
+    if (currency?.toLowerCase() == "eur") numPrice * 2; // multiply by exchange rate
+
+    prices.push(numPrice);
+  }
+  console.log("Array of prices: ", prices);
+  const avgPriceBGN = Math.round(
+    prices.reduce((a, b) => a + b) / prices.length
+  ); //calculating avg price
+  console.log("average price is: ", avgPriceBGN);
+
+  return avgPriceBGN;
 }
 
 function createPaginationUrls(): string[] {
@@ -161,16 +181,24 @@ chrome.runtime.onConnect.addListener(function (port) {
           );
           // organise this in a function
           generalCarObject = [].concat(...generalCarObject);
-          const filteredElements = matchElement(
+          const objectMatchingFilter = matchElement(
             generalCarObject,
-            request.filterValue
+            request.filterValue as string
           );
 
+          // finding ancestor elements
+          const filteredElements = objectMatchingFilter
+            .map((elem) =>
+              findClosestAncestorWithClass(elem.element, "tablereset")
+            )
+            .filter((elem) => elem) as Element[];
+
+          // break element before car listing begin -> append filtered elements after it
           const carTable = document.querySelector(
             ".tablereset.m-t-10 br:nth-of-type(2)"
           );
 
-          // popluate first page with filtered elements
+          // populuate first page with filtered elements
           filteredElements.forEach((elem) =>
             carTable?.insertAdjacentElement("afterend", elem)
           );
@@ -179,6 +207,10 @@ chrome.runtime.onConnect.addListener(function (port) {
           chrome.storage.local.set({ filterAmount: filteredElements.length });
           setTimeout(() => console.log("Waiting for half a second."), 500); // local storage seems to need a little bit of time to update?
           port.postMessage({ message: "filterAmountStored" });
+
+          // send avg price to popup
+          const avgPrice = calculateAvgPrice(objectMatchingFilter);
+          port.postMessage({ message: "avgprice", price: avgPrice });
 
           // remove pagination elements
           hidePagination("none");

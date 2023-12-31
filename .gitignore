@@ -4,3 +4,4 @@
 *.txt
 background_storage.ts
 *mobile_extension_blueprint*
+.idea

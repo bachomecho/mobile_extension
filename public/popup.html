@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mobile Extension</title>
+    <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
     <input
@@ -14,11 +15,13 @@
       minlength="2"
       maxlength="20"
     />
-    <button id="filterbutton">Filter</button>
-    <button id="removefilter">Remove Filter</button>
+    <button id="filterbutton">Филтрирай</button>
+    <button id="removefilter">Премахни филтер</button>
     <div id="remainingelementcount">
-      Remaining listings after filter: <span id="count"></span>
+      Обяви след филтер: <span id="count"></span>
     </div>
+    <div id="avgpricediv">Средна цена: <span id="avgprice"></span></div>
+
     <script src="popup.js"></script>
   </body>
 </html>

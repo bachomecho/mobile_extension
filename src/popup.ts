@@ -33,6 +33,10 @@ function executeFilter() {
         document.getElementById("count")!.innerText = result.filterAmount;
       });
     }
+    if (response.message == "avgprice") {
+      document.getElementById("avgprice")!.innerText =
+        response.price.toLocaleString("bg-BG") + " лв.";
+    }
   });
 }
 
