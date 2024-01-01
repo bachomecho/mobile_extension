@@ -3,14 +3,20 @@ body {
   width: max-content;
 }
 
-#count {
+#searchTerm {
   font-weight: bold;
-  color: #03940f;
-  padding-top: 1cm;
+  color: #000000;
+  margin-top: 5px;
 }
 
-#avgprice {
+#remainingelementcount {
+  font-weight: bold;
+  color: #03940f;
+  margin-top: 5px;
+}
+
+#avgpricediv {
   font-weight: bold;
   color: #040cf7;
-  padding-top: 1cm;
+  margin-top: 5px;
 }

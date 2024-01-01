@@ -125,11 +125,9 @@ function calculateAvgPrice(elements: CarElement[]): number {
 
     prices.push(numPrice);
   }
-  console.log("Array of prices: ", prices);
   const avgPriceBGN = Math.round(
     prices.reduce((a, b) => a + b) / prices.length
   ); //calculating avg price
-  console.log("average price is: ", avgPriceBGN);
 
   return avgPriceBGN;
 }
@@ -159,6 +157,15 @@ function hidePagination(hide: "none" | "inline"): void {
   });
 }
 
+function fullSearchKeywords(filterValue: string): string {
+  const brandModel = document
+    .querySelector('[name="search"] h1')
+    ?.textContent?.split(" ")
+    .slice(2)
+    .join(" ");
+  return brandModel + " " + filterValue;
+}
+
 chrome.runtime.onConnect.addListener(function (port) {
   console.assert(port.name === "MOBILE_POPUP");
   port.onMessage.addListener(async function (request) {
@@ -167,10 +174,10 @@ chrome.runtime.onConnect.addListener(function (port) {
       switch (request.message) {
         case "filter":
           const urls = createPaginationUrls();
-          let generalCarObject: any[] = []; // TODO: change any type
+          let generalCarObject: Array<CarElement[]> = [];
           await Promise.all(
             urls.map(async (url) => {
-              const response = await fetch(url);
+              const response = await fetch(url); // can these responses be cached?
               const decoder = new TextDecoder("windows-1251");
               const buffer = await response.arrayBuffer();
               const htmlString = decoder.decode(buffer);
@@ -180,9 +187,10 @@ chrome.runtime.onConnect.addListener(function (port) {
             })
           );
           // organise this in a function
-          generalCarObject = [].concat(...generalCarObject);
+          const flatGeneralCarObject = generalCarObject.flat(2);
+          console.log("flatGeneralCarObject :", flatGeneralCarObject);
           const objectMatchingFilter = matchElement(
-            generalCarObject,
+            flatGeneralCarObject,
             request.filterValue as string
           );
 
@@ -203,14 +211,23 @@ chrome.runtime.onConnect.addListener(function (port) {
             carTable?.insertAdjacentElement("afterend", elem)
           );
 
-          // delete below after testing above
-          chrome.storage.local.set({ filterAmount: filteredElements.length });
-          setTimeout(() => console.log("Waiting for half a second."), 500); // local storage seems to need a little bit of time to update?
-          port.postMessage({ message: "filterAmountStored" });
-
           // send avg price to popup
           const avgPrice = calculateAvgPrice(objectMatchingFilter);
-          port.postMessage({ message: "avgprice", price: avgPrice });
+
+          // search keywords
+          const searchKeywords = fullSearchKeywords(
+            request.filterValue as string
+          );
+
+          // setting local storage
+          chrome.storage.local.set({
+            searchKeywords: searchKeywords,
+            filterAmount: filteredElements.length,
+            avgPrice: avgPrice,
+          });
+
+          setTimeout(() => console.log("Waiting for half a second."), 500); // local storage seems to need a little bit of time to update?
+          port.postMessage({ message: "localStorageUpdated" });
 
           // remove pagination elements
           hidePagination("none");

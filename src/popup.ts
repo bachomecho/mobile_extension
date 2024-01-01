@@ -7,11 +7,18 @@ chrome.tabs.query({ active: true, currentWindow: true }, async function (tabs) {
   });
   port.postMessage({ message: "connectToContentScript" });
 });
-
-// getting filteramount on extension startup or repeated open
-chrome.storage.local.get(["filterAmount"], function (result) {
-  document.getElementById("count")!.innerText = result.filterAmount;
-});
+function getLocalStorage() {
+  chrome.storage.local.get(
+    ["searchKeywords", "filterAmount", "avgPrice"],
+    function (result) {
+      document.getElementById("keywords")!.innerText = result.searchKeywords;
+      document.getElementById("count")!.innerText = result.filterAmount;
+      document.getElementById("avgprice")!.innerText =
+        result.avgPrice.toLocaleString("bg-BG") + " лв.";
+    }
+  );
+}
+getLocalStorage(); // getting local storage on intial load to show last search
 
 // get elements
 const inputElement = document.getElementById("filtervalue") as HTMLInputElement;
@@ -28,22 +35,20 @@ function executeFilter() {
   });
 
   port.onMessage.addListener(function (response) {
-    if (response.message == "filterAmountStored") {
-      chrome.storage.local.get(["filterAmount"], function (result) {
-        document.getElementById("count")!.innerText = result.filterAmount;
-      });
-    }
-    if (response.message == "avgprice") {
-      document.getElementById("avgprice")!.innerText =
-        response.price.toLocaleString("bg-BG") + " лв.";
+    if (response.message == "localStorageUpdated") {
+      getLocalStorage();
     }
   });
 }
 
 function removeFilter() {
   port.postMessage({ type: "popuprequest", message: "removefilter" });
-  document.getElementById("count")!.innerText = "0";
-  chrome.storage.local.set({ filterAmount: 0 });
+  const storageKeys = ["searchKeywords", "filterAmount", "avgPrice"];
+  chrome.storage.local.set(
+    Object.fromEntries(storageKeys.map((key) => [key, 0]))
+  );
+  setTimeout(() => console.log("Waiting for half a second."), 500);
+  getLocalStorage(); // getting cleared local storage
 }
 
 // adding button functionality
