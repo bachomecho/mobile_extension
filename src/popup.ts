@@ -7,6 +7,7 @@ chrome.tabs.query({ active: true, currentWindow: true }, async function (tabs) {
   });
   port.postMessage({ message: "connectToContentScript" });
 });
+
 function getLocalStorage() {
   chrome.storage.local.get(
     ["searchKeywords", "filterAmount", "avgPrice"],
@@ -18,7 +19,21 @@ function getLocalStorage() {
     }
   );
 }
-getLocalStorage(); // getting local storage on intial load to show last search
+// getLocalStorage(); // getting local storage on intial load to show last search
+
+function getSessionStorage() {
+  const idKeyMap = new Map<string, string>([
+    ["keywords", "searchKeywords"],
+    ["count", "filterAmount"],
+    ["avgprice", "avgPrice"],
+  ]);
+  for (let [key, value] of idKeyMap) {
+    console.log("key: ", key, "value: ", value);
+    console.log(key, document.getElementById(key)!.innerText);
+    console.log(value, sessionStorage.getItem(value));
+    document.getElementById(key)!.innerText = sessionStorage.getItem(value)!;
+  }
+}
 
 // get elements
 const inputElement = document.getElementById("filtervalue") as HTMLInputElement;
@@ -35,8 +50,8 @@ function executeFilter() {
   });
 
   port.onMessage.addListener(function (response) {
-    if (response.message == "localStorageUpdated") {
-      getLocalStorage();
+    if (response.message == "sessionStorageUpdated") {
+      getSessionStorage();
     }
   });
 }

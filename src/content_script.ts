@@ -220,14 +220,15 @@ chrome.runtime.onConnect.addListener(function (port) {
           );
 
           // setting local storage
-          chrome.storage.local.set({
-            searchKeywords: searchKeywords,
-            filterAmount: filteredElements.length,
-            avgPrice: avgPrice,
-          });
+          sessionStorage.setItem("searchKeywords", searchKeywords);
+          sessionStorage.setItem(
+            "filterAmount",
+            filteredElements.length.toString()
+          );
+          sessionStorage.setItem("avgPrice", avgPrice.toString());
 
           setTimeout(() => console.log("Waiting for half a second."), 500); // local storage seems to need a little bit of time to update?
-          port.postMessage({ message: "localStorageUpdated" });
+          port.postMessage({ message: "sessionStorageUpdated" });
 
           // remove pagination elements
           hidePagination("none");
@@ -236,6 +237,7 @@ chrome.runtime.onConnect.addListener(function (port) {
           hidePagination("inline");
           document.documentElement.replaceChild(originalHTML, document.body);
           break;
+
         default:
           console.log("No message from popup.");
       }
