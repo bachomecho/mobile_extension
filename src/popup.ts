@@ -34,10 +34,12 @@ function executeFilter() {
     filterValue: inputElement.value,
   });
 
+  const loading = document.getElementById("loading")!;
+  loading.textContent = "Зарежда...";
+
   port.onMessage.addListener(function (response) {
-    if (response.message == "localStorageUpdated") {
-      getLocalStorage();
-    }
+    if (response.message == "loadingdone") loading.textContent = "";
+    if (response.message == "localStorageUpdated") getLocalStorage();
   });
 }
 

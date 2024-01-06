@@ -114,20 +114,27 @@ function matchElement(
 /**calculates the average price of the filtered elements in BGN */
 function calculateAvgPrice(elements: CarElement[]): number {
   console.log(elements);
-  const prices: number[] = [];
+  let prices: number[] = [];
   for (let i = 0; i < elements.length; i++) {
     const splitPrice = elements[i].price.trim().split(" ");
     console.log("split price: ", splitPrice);
     console.log("split price sliced: ", splitPrice.slice(0, 2).join(""));
-    const numPrice = parseInt(splitPrice.slice(0, 2).join(""));
+    let numPrice = parseInt(splitPrice.slice(0, 2).join(""));
     const currency = splitPrice.at(-1);
-    if (currency?.toLowerCase() == "eur") numPrice * 2; // multiply by exchange rate
-
+    console.log("currency ", currency);
+    if (currency?.toLowerCase() == "eur") {
+      console.log("Currency is eur");
+      numPrice *= 2; // multiply by exchange rate
+    }
+    console.log("numprice: ", numPrice);
     prices.push(numPrice);
   }
+  prices = prices.filter((elem) => elem);
+  console.log("prices Array: ", prices);
   const avgPriceBGN = Math.round(
     prices.reduce((a, b) => a + b) / prices.length
   ); //calculating avg price
+  console.log("average price: ", avgPriceBGN);
 
   return avgPriceBGN;
 }
@@ -210,6 +217,7 @@ chrome.runtime.onConnect.addListener(function (port) {
           filteredElements.forEach((elem) =>
             carTable?.insertAdjacentElement("afterend", elem)
           );
+          port.postMessage({ message: "loadingdone" });
 
           // send avg price to popup
           const avgPrice = calculateAvgPrice(objectMatchingFilter);
@@ -226,8 +234,10 @@ chrome.runtime.onConnect.addListener(function (port) {
             avgPrice: avgPrice,
           });
 
-          setTimeout(() => console.log("Waiting for half a second."), 500); // local storage seems to need a little bit of time to update?
-          port.postMessage({ message: "localStorageUpdated" });
+          setTimeout(
+            () => port.postMessage({ message: "localStorageUpdated" }),
+            500
+          );
 
           // remove pagination elements
           hidePagination("none");

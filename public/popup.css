@@ -3,6 +3,12 @@ body {
   width: max-content;
 }
 
+#loading {
+  font-weight: bold;
+  color: #000000;
+  margin-top: 5px;
+}
+
 #searchTerm {
   font-weight: bold;
   color: #000000;
