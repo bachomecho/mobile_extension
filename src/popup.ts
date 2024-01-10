@@ -2,9 +2,7 @@
 let port: chrome.runtime.Port;
 
 chrome.tabs.query({ active: true, currentWindow: true }, async function (tabs) {
-  port = chrome.tabs.connect(tabs[0].id as number, {
-    name: "MOBILE_POPUP",
-  });
+  port = chrome.tabs.connect(tabs[0].id as number, {name: "MOBILE_POPUP",});
   port.postMessage({ message: "connectToContentScript" });
 });
 function getLocalStorage() {

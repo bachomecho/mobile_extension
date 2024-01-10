@@ -1,7 +1,13 @@
-chrome.webNavigation.onCommitted.addListener(function (details) {
-  if (details.frameId === 0 && details.transitionType === "reload") {
-    console.log("Page reloaded!");
-    chrome.storage.local.set({ filterAmount: 0 });
+let cache = new Array<Map<string, Element[]>>()
+
+chrome.runtime.onMessage.addListener(function(request){
+  console.log("connection is healthy.")
+  console.log("message: ", request.queue)
+  if (cache.length >= 3) {
+    cache = cache.slice(1)
+    cache.push(request.queue)
   }
-});
-// should be no problem for other tabs as extension is only scoping mobile.bg, right?
+  cache.push(request.queue)
+})
+
+console.log("cache look at it!", cache)

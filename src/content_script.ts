@@ -113,28 +113,24 @@ function matchElement(
 
 /**calculates the average price of the filtered elements in BGN */
 function calculateAvgPrice(elements: CarElement[]): number {
-  console.log(elements);
+  if (!elements) return 0
   let prices: number[] = [];
   for (let i = 0; i < elements.length; i++) {
-    const splitPrice = elements[i].price.trim().split(" ");
-    console.log("split price: ", splitPrice);
-    console.log("split price sliced: ", splitPrice.slice(0, 2).join(""));
-    let numPrice = parseInt(splitPrice.slice(0, 2).join(""));
-    const currency = splitPrice.at(-1);
-    console.log("currency ", currency);
-    if (currency?.toLowerCase() == "eur") {
-      console.log("Currency is eur");
-      numPrice *= 2; // multiply by exchange rate
+    if (!elements[i].price.trim().startsWith("Запитване")) {
+
+      const splitPrice = elements[i].price.trim().split(" ");
+      let numPrice = parseInt(splitPrice.slice(0, 2).join(""));
+      const currency = splitPrice.at(-1);
+      if (currency?.toLowerCase() == "eur") {
+        console.log("Currency is eur");
+        numPrice *= 2; // multiply by exchange rate
+      }
+      prices.push(numPrice);
     }
-    console.log("numprice: ", numPrice);
-    prices.push(numPrice);
   }
   prices = prices.filter((elem) => elem);
-  console.log("prices Array: ", prices);
-  const avgPriceBGN = Math.round(
-    prices.reduce((a, b) => a + b) / prices.length
-  ); //calculating avg price
-  console.log("average price: ", avgPriceBGN);
+  //calculating avg price
+  const avgPriceBGN = Math.round(prices.reduce((a, b) => a + b) / prices.length)
 
   return avgPriceBGN;
 }
@@ -173,6 +169,94 @@ function fullSearchKeywords(filterValue: string): string {
   return brandModel + " " + filterValue;
 }
 
+async function main(request: any, port: chrome.runtime.Port) {
+  const urls = createPaginationUrls();
+  let generalCarObject: Array<CarElement[]> = [];
+  await Promise.all(
+    urls.map(async (url) => {
+      const response = await fetch(url);
+      const decoder = new TextDecoder("windows-1251");
+      const buffer = await response.arrayBuffer();
+      const htmlString = decoder.decode(buffer);
+      const pageNumber: string = url.charAt(url.length - 1);
+      const cars = await createCarObjects(htmlString, pageNumber);
+      generalCarObject.push(cars);
+    })
+  );
+  // organise this in a function
+  const flatGeneralCarObject = generalCarObject.flat(2);
+  const objectMatchingFilter = matchElement(
+    flatGeneralCarObject,
+    request.filterValue as string // do a cache check here? or before calling matchElement?
+  );
+
+  // finding ancestor elements
+  const filteredElements = objectMatchingFilter
+    .map((elem) =>
+      findClosestAncestorWithClass(elem.element, "tablereset")
+    )
+    .filter((elem) => elem) as Element[];
+
+  console.log("log filtered elements: ", filteredElements)
+
+  // break element before car listing begin -> append filtered elements after it
+  const carTable = document.querySelector(
+    ".tablereset.m-t-10 br:nth-of-type(2)"
+  );
+
+  // populate first page with filtered elements
+  filteredElements.forEach((elem) =>
+    carTable?.insertAdjacentElement("afterend", elem)
+  );
+  port.postMessage({ message: "loadingdone" });
+
+  // TODO: from here on down, make an interface for the locastorage things, group together in a functionty
+
+  // send avg price to popup
+  const avgPrice = calculateAvgPrice(objectMatchingFilter);
+
+  // search keywords
+  const searchKeywords = fullSearchKeywords(
+    request.filterValue as string
+  );
+
+  const filterElementsHTML = document.documentElement.innerHTML;
+
+  let lastSearchString = ""
+  chrome.storage.local.get(["lastSearches"], function(result){
+    if (!result.lastSearches){
+      lastSearchString = `search-${request.filterValue}<divider1>${filterElementsHTML}<divider2>`
+    } else {
+      const arr = result.lastSearches.split("<divider2>")
+
+      // check if cache contains 3 items or more
+      if (arr.length >= 3)
+        lastSearchString = arr.slice(1).join("") + `search-${request.filterValue}<divider1>${filterElementsHTML}<divider2>`
+      else lastSearchString = result.lastSearches + `search-${request.filterValue}<divider1>${filterElementsHTML}<divider2>`
+    }
+
+
+  })
+  setTimeout(() => {
+    chrome.storage.local.set({
+      searchKeywords: searchKeywords,
+      filterAmount: filteredElements.length,
+      avgPrice: avgPrice,
+      lastSearches: lastSearchString
+    }); //TODO: create an interface for this - or a Map type
+    port.postMessage({message: "localStorageUpdated"})
+    console.log("local storage set.")
+
+    chrome.storage.local.get(["lastSearches"], function(result) {
+      console.log("testing last searches: ", result.lastSearches)
+    })
+
+    // remove pagination elements
+    hidePagination("none");
+  }, 500) // half a second wait to set lastSearchString properly
+}
+
+
 chrome.runtime.onConnect.addListener(function (port) {
   console.assert(port.name === "MOBILE_POPUP");
   port.onMessage.addListener(async function (request) {
@@ -180,67 +264,27 @@ chrome.runtime.onConnect.addListener(function (port) {
     if (request.type === "popuprequest") {
       switch (request.message) {
         case "filter":
-          const urls = createPaginationUrls();
-          let generalCarObject: Array<CarElement[]> = [];
-          await Promise.all(
-            urls.map(async (url) => {
-              const response = await fetch(url); // can these responses be cached?
-              const decoder = new TextDecoder("windows-1251");
-              const buffer = await response.arrayBuffer();
-              const htmlString = decoder.decode(buffer);
-              const pageNumber: string = url.charAt(url.length - 1);
-              const cars = await createCarObjects(htmlString, pageNumber);
-              generalCarObject.push(cars);
-            })
-          );
-          // organise this in a function
-          const flatGeneralCarObject = generalCarObject.flat(2);
-          console.log("flatGeneralCarObject :", flatGeneralCarObject);
-          const objectMatchingFilter = matchElement(
-            flatGeneralCarObject,
-            request.filterValue as string
-          );
-
-          // finding ancestor elements
-          const filteredElements = objectMatchingFilter
-            .map((elem) =>
-              findClosestAncestorWithClass(elem.element, "tablereset")
-            )
-            .filter((elem) => elem) as Element[];
-
-          // break element before car listing begin -> append filtered elements after it
-          const carTable = document.querySelector(
-            ".tablereset.m-t-10 br:nth-of-type(2)"
-          );
-
-          // populuate first page with filtered elements
-          filteredElements.forEach((elem) =>
-            carTable?.insertAdjacentElement("afterend", elem)
-          );
-          port.postMessage({ message: "loadingdone" });
-
-          // send avg price to popup
-          const avgPrice = calculateAvgPrice(objectMatchingFilter);
-
-          // search keywords
-          const searchKeywords = fullSearchKeywords(
-            request.filterValue as string
-          );
-
-          // setting local storage
-          chrome.storage.local.set({
-            searchKeywords: searchKeywords,
-            filterAmount: filteredElements.length,
-            avgPrice: avgPrice,
-          });
-
-          setTimeout(
-            () => port.postMessage({ message: "localStorageUpdated" }),
-            500
-          );
-
-          // remove pagination elements
-          hidePagination("none");
+          chrome.storage.local.get(["lastSearches"], async function(result) {
+            console.log("init result check: ", result.lastSearches)
+            if (result.lastSearches){
+                console.log("searches exist.")
+                const arr = result.lastSearches.split("<divider2>")
+                for (let i = 0; i < arr.length; i++){
+                  const searchValue = arr[i].split("<divider1>")[0].split("search-")[1]
+                  if (searchValue === request.filterValue) {
+                    document.documentElement.innerHTML = arr[i].split("<divider1>")[1] // take html string from corresponding search value
+                    port.postMessage({ message: "loadingdone" });
+                    console.log("return early boi")
+                    return
+                  }
+                }
+                await main(request, port)
+                console.log("main called 1")
+            } else {
+              await main(request, port)
+              console.log("main called 2")
+            }
+          })
           break;
         case "removefilter":
           hidePagination("inline");
