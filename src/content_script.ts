@@ -25,25 +25,19 @@ function parseTitleFromLink(html: string): string {
   return doc.getElementsByTagName("h1")[0].textContent!;
 }
 
-function findClosestAncestorWithClass(
-  element: Element,
-  className: string
-): Element | null {
+function findClosestAncestorWithClass(element: Element, className: string): Element | null {
   if (element.classList.contains(className)) {
     return element;
   }
 
   // traverse the DOM tree upwards until a parent with the specified class is found
-  let count = 0;
+  let count = 0; // this count is needed because the first element with class tablereset is the car image and not the main parent node
   while (element.parentElement) {
     element = element.parentElement;
     if (element.classList.contains(className) && count != 0) {
       return element;
-    } else {
-      count++;
-      continue;
-    }
-  } // this count is needed because the first element with class tablereset is the car image and not the main parent node
+    } else count++;
+  }
   return null;
 }
 
@@ -169,7 +163,7 @@ function fullSearchKeywords(filterValue: string): string {
   return brandModel + " " + filterValue;
 }
 
-async function main(request: any, port: chrome.runtime.Port) {
+async function extractAllListings(): Promise<CarElement[]>{
   const urls = createPaginationUrls();
   let generalCarObject: Array<CarElement[]> = [];
   await Promise.all(
@@ -178,13 +172,15 @@ async function main(request: any, port: chrome.runtime.Port) {
       const decoder = new TextDecoder("windows-1251");
       const buffer = await response.arrayBuffer();
       const htmlString = decoder.decode(buffer);
-      const pageNumber: string = url.charAt(url.length - 1);
-      const cars = await createCarObjects(htmlString, pageNumber);
+      const cars = await createCarObjects(htmlString, url.charAt(url.length - 1));
       generalCarObject.push(cars);
     })
   );
-  // organise this in a function
-  const flatGeneralCarObject = generalCarObject.flat(2);
+  return generalCarObject.flat(2);
+}
+
+async function main(request: any, port: chrome.runtime.Port) {
+  const flatGeneralCarObject = await extractAllListings()
   const objectMatchingFilter = matchElement(
     flatGeneralCarObject,
     request.filterValue as string // do a cache check here? or before calling matchElement?
@@ -210,7 +206,7 @@ async function main(request: any, port: chrome.runtime.Port) {
   );
   port.postMessage({ message: "loadingdone" });
 
-  // TODO: from here on down, make an interface for the locastorage things, group together in a functionty
+  // TODO: from here on down, make an interface for the locastorage things, group together in a function
 
   // send avg price to popup
   const avgPrice = calculateAvgPrice(objectMatchingFilter);
