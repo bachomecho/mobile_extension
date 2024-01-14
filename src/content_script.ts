@@ -55,8 +55,8 @@ async function createCarObjects(
   const parser = new DOMParser();
   const doc = parser.parseFromString(htmlText, "text/html");
 
-  const titleElements = doc.getElementsByClassName("mmm"); // gets title elements
-  const priceElements = doc.getElementsByClassName("price"); // gets price elements
+  const titleElements = doc.getElementsByClassName("mmm");
+  const priceElements = doc.getElementsByClassName("price");
   const carObjList = new Array<CarElement>();
   for (let i = 2; i < titleElements.length; i++) {
     // first two elements with class mmm are not car elements so they are skipped over
@@ -97,11 +97,10 @@ function matchElement(
 ): CarElement[] {
   const matchArray = elementArray.filter((elem) =>
     elem.title
-      .replace(/\s/g, "")
+      .replace(/\s/g, "") //TODO: if search has spaces, this will be a problem
       .toLowerCase()
       .includes(filterValue.toLowerCase())
   );
-  console.log(matchArray);
   return matchArray;
 }
 
@@ -116,7 +115,6 @@ function calculateAvgPrice(elements: CarElement[]): number {
       let numPrice = parseInt(splitPrice.slice(0, 2).join(""));
       const currency = splitPrice.at(-1);
       if (currency?.toLowerCase() == "eur") {
-        console.log("Currency is eur");
         numPrice *= 2; // multiply by exchange rate
       }
       prices.push(numPrice);
@@ -188,8 +186,6 @@ function populateWithFilteredElems(matchingElements: CarElement[]){
     )
     .filter((elem) => elem) as Element[];
 
-  console.log("log filtered elements: ", filteredElements)
-
   // 'break' element before car listing begin -> append filtered elements after it
   const carTable = document.querySelector(
     ".tablereset.m-t-10 br:nth-of-type(2)"
@@ -205,18 +201,14 @@ async function main(request: any, port: chrome.runtime.Port) {
   const flatGeneralCarObject = await extractAllListings()
   const objectMatchingFilter = matchElement(
     flatGeneralCarObject,
-    request.filterValue as string // do a cache check here? or before calling matchElement?
+    request.filterValue as string
   );
 
   populateWithFilteredElems(objectMatchingFilter)
   port.postMessage({ message: "loadingdone" });
 
-  // TODO: from here on down, make an interface for the locastorage things, group together in a function
-
-  // send avg price to popup
   const avgPrice = calculateAvgPrice(objectMatchingFilter);
 
-  // search keywords
   const searchKeywords = fullSearchKeywords(
     request.filterValue as string
   );
@@ -235,22 +227,16 @@ async function main(request: any, port: chrome.runtime.Port) {
         lastSearchString = arr.slice(1).join("") + `search-${request.filterValue}<divider1>${filterElementsHTML}<divider2>`
       else lastSearchString = result.lastSearches + `search-${request.filterValue}<divider1>${filterElementsHTML}<divider2>`
     }
-
-
   })
+
   setTimeout(() => {
     chrome.storage.local.set({
       searchKeywords: searchKeywords,
-      filterAmount: objectMatchingFilter.length, // length may not be working
+      filterAmount: objectMatchingFilter.length,
       avgPrice: avgPrice,
       lastSearches: lastSearchString
-    }); //TODO: create an interface for this - or a Map type
+    });
     port.postMessage({message: "localStorageUpdated"})
-    console.log("local storage set.")
-
-    chrome.storage.local.get(["lastSearches"], function(result) {
-      console.log("testing last searches: ", result.lastSearches)
-    })
 
     // remove pagination elements
     hidePagination("none");
@@ -266,24 +252,20 @@ chrome.runtime.onConnect.addListener(function (port) {
       switch (request.message) {
         case "filter":
           chrome.storage.local.get(["lastSearches"], async function(result) {
-            console.log("init result check: ", result.lastSearches)
             if (result.lastSearches){
-                console.log("searches exist.")
                 const arr = result.lastSearches.split("<divider2>")
                 for (let i = 0; i < arr.length; i++){
                   const searchValue = arr[i].split("<divider1>")[0].split("search-")[1]
                   if (searchValue === request.filterValue) {
-                    document.documentElement.innerHTML = arr[i].split("<divider1>")[1] // take html string from corresponding search value
+                    // take html string from corresponding search value after filter
+                    document.documentElement.innerHTML = arr[i].split("<divider1>")[1]
                     port.postMessage({ message: "loadingdone" });
-                    console.log("return early boi")
                     return
                   }
                 }
                 await main(request, port)
-                console.log("main called 1")
             } else {
               await main(request, port)
-              console.log("main called 2")
             }
           })
           break;
