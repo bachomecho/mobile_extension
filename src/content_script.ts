@@ -53,7 +53,7 @@ async function createCarObjects(
   pageNumber: string
 ): Promise<CarElement[]> {
   const parser = new DOMParser();
-  const doc = parser.parseFromString(htmlText, "text/html");
+  const doc = parser.parseFromString(htmlText, "text/html")
 
   const titleElements = doc.getElementsByClassName("mmm");
   const priceElements = doc.getElementsByClassName("price");
@@ -115,16 +115,20 @@ function calculateAvgPrice(elements: CarElement[]): number {
       let numPrice = parseInt(splitPrice.slice(0, 2).join(""));
       const currency = splitPrice.at(-1);
       if (currency?.toLowerCase() == "eur") {
-        numPrice *= 2; // multiply by exchange rate
+        numPrice *= 2; // TODO: multiply by actual exchange rate
       }
       prices.push(numPrice);
     }
   }
   prices = prices.filter((elem) => elem);
   //calculating avg price
-  const avgPriceBGN = Math.round(prices.reduce((a, b) => a + b) / prices.length)
-
-  return avgPriceBGN;
+  console.log("avg prices called: ", prices)
+  if (prices) {
+    const avgPriceBGN = Math.round(prices.reduce((a, b) => a + b) / prices.length)
+    return avgPriceBGN;
+  }
+  console.log("prices empty/ undefined")
+  return 21
 }
 
 function createPaginationUrls(): string[] {
@@ -215,56 +219,63 @@ async function main(request: any, port: chrome.runtime.Port) {
 
   const filterElementsHTML = document.documentElement.innerHTML;
 
-  let lastSearchString = ""
+  const cacheItem: CacheInfo = {
+    searchValue: request.filterValue,
+    keywords: searchKeywords,
+    filterAmount: objectMatchingFilter.length,
+    avgPrice: avgPrice,
+    filteredHtmlText: filterElementsHTML
+  }
+
   chrome.storage.local.get(["lastSearches"], function(result){
     if (!result.lastSearches){
-      lastSearchString = `search-${request.filterValue}<divider1>${filterElementsHTML}<divider2>`
+      const cache: CacheInfo[] = []
+      cache.push(cacheItem)
+      chrome.storage.local.set({lastSearches: JSON.stringify(cache)});
     } else {
-      const arr = result.lastSearches.split("<divider2>")
-
-      // check if cache contains 3 items or more
-      if (arr.length >= 3)
-        lastSearchString = arr.slice(1).join("") + `search-${request.filterValue}<divider1>${filterElementsHTML}<divider2>`
-      else lastSearchString = result.lastSearches + `search-${request.filterValue}<divider1>${filterElementsHTML}<divider2>`
+      let cachedSearches = JSON.parse(result.lastSearches)
+      console.log("CACHED searches: ", cachedSearches)
+      if (cachedSearches.length >= 3) {
+        cachedSearches.slice(1).push(cacheItem)
+        chrome.storage.local.set({lastSearches: JSON.stringify(cachedSearches)});
+        console.log("cached searches after FIFO: ", cachedSearches)
+      } else {
+        console.log("look at else")
+        cachedSearches.push(cacheItem)
+        console.log("cached sEaRches: ", cachedSearches)
+        chrome.storage.local.set({lastSearches: JSON.stringify(cachedSearches)});
+      }
     }
   })
 
-  setTimeout(() => {
-    chrome.storage.local.set({
-      searchKeywords: searchKeywords,
-      filterAmount: objectMatchingFilter.length,
-      avgPrice: avgPrice,
-      lastSearches: lastSearchString
-    });
-    port.postMessage({message: "localStorageUpdated"})
-
-    // remove pagination elements
-    hidePagination("none");
-  }, 500) // half a second wait to set lastSearchString properly
+  hidePagination("none");
 }
 
 
 chrome.runtime.onConnect.addListener(function (port) {
   console.assert(port.name === "MOBILE_POPUP");
   port.onMessage.addListener(async function (request) {
-    // TODO: create a union type for request states (successful, error, etc.)
+    // TODO: create a union type for request states (successful, error, etc.) in background script
     if (request.type === "popuprequest") {
       switch (request.message) {
         case "filter":
           chrome.storage.local.get(["lastSearches"], async function(result) {
             if (result.lastSearches){
-                const arr = result.lastSearches.split("<divider2>")
-                for (let i = 0; i < arr.length; i++){
-                  const searchValue = arr[i].split("<divider1>")[0].split("search-")[1]
-                  if (searchValue === request.filterValue) {
-                    // take html string from corresponding search value after filter
-                    document.documentElement.innerHTML = arr[i].split("<divider1>")[1]
-                    port.postMessage({ message: "loadingdone" });
+                console.log("lastsearches: ", result.lastSearches)
+                const cacheArray: CacheInfo[] = JSON.parse(result.lastSearches)
+                console.log("cache array length", cacheArray.length)
+                for (let item = 0; item < cacheArray.length; item++){
+                  console.log("search keys: ", cacheArray[item].searchValue)
+                  if (request.filterValue === cacheArray[item].searchValue) { // TODO: what if filtervalue is the same for different kinds of cars?? how do you distinguish the correct item to take from cache?
+                    document.documentElement.innerHTML = cacheArray[item].filteredHtmlText
+                    console.log("filter taken from cache")
                     return
                   }
                 }
+                console.log("call 1")
                 await main(request, port)
             } else {
+              console.log("call 2")
               await main(request, port)
             }
           })

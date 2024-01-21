@@ -11,3 +11,11 @@ chrome.runtime.onMessage.addListener(function(request){
 })
 
 console.log("cache look at it!", cache)
+
+interface CacheInfo {
+  searchValue: string,
+  keywords: string,
+  filterAmount: number,
+  avgPrice: number,
+  filteredHtmlText: string
+}
