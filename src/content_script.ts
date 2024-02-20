@@ -265,10 +265,10 @@ chrome.runtime.onConnect.addListener(function (port) {
                 const cacheArray: CacheInfo[] = JSON.parse(result.lastSearches)
                 console.log("cache array length", cacheArray.length)
                 for (let item = 0; item < cacheArray.length; item++){
-                  console.log("search keys: ", cacheArray[item].searchValue)
-                  if (request.filterValue === cacheArray[item].searchValue) { // TODO: what if filtervalue is the same for different kinds of cars?? how do you distinguish the correct item to take from cache?
+                  if (request.filterValue === cacheArray[item].searchValue &&
+                    cacheArray[item].keywords === fullSearchKeywords(request.filterValue)) {
                     document.documentElement.innerHTML = cacheArray[item].filteredHtmlText
-                    console.log("filter taken from cache")
+                    port.postMessage({ type : 'populate', message : JSON.stringify(cacheArray[item])})
                     return
                   }
                 }
