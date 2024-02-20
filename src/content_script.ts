@@ -105,7 +105,7 @@ function matchElement(
   return matchArray ? matchArray : []
 }
 
-/**calculates the average price of the filtered elements in BGN */
+// calculates the average price of the filtered elements in BGN
 function calculateAvgPrice(elements: CarElement[]): number {
   if (!elements) return 0
   let prices: number[] = [];
@@ -122,14 +122,13 @@ function calculateAvgPrice(elements: CarElement[]): number {
     }
   }
   prices = prices.filter((elem) => elem);
-  //calculating avg price
-  console.log("avg prices called: ", prices)
+
   if (prices) {
     const avgPriceBGN = Math.round(prices.reduce((a, b) => a + b) / prices.length)
     return avgPriceBGN;
   }
-  console.log("prices empty/ undefined")
-  return 21
+  // it is possible that there are elements but they do not have prices in which case we return an everage of zero
+  return 0
 }
 
 function createPaginationUrls(): string[] {
