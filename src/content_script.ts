@@ -101,7 +101,7 @@ function matchElement(
       .toLowerCase()
       .includes(filterValue.toLowerCase())
   );
-  return matchArray;
+  return matchArray ? matchArray : []
 }
 
 /**calculates the average price of the filtered elements in BGN */
@@ -207,49 +207,56 @@ async function main(request: any, port: chrome.runtime.Port) {
     flatGeneralCarObject,
     request.filterValue as string
   );
-
-  populateWithFilteredElems(objectMatchingFilter)
+  if (!objectMatchingFilter) {
+    port.postMessage({ type: 'warning', message: 'no listings found'})
+    return
+  }
+  else {
+    populateWithFilteredElems(objectMatchingFilter)
   port.postMessage({ message: "loadingdone" });
 
-  const avgPrice = calculateAvgPrice(objectMatchingFilter);
+    const avgPrice = calculateAvgPrice(objectMatchingFilter);
 
-  const searchKeywords = fullSearchKeywords(
-    request.filterValue as string
-  );
+    const searchKeywords = fullSearchKeywords(
+      request.filterValue as string
+    );
 
-  const filterElementsHTML = document.documentElement.innerHTML;
+    const filterElementsHTML = document.documentElement.innerHTML;
 
-  const cacheItem: CacheInfo = {
-    searchValue: request.filterValue,
-    keywords: searchKeywords,
-    filterAmount: objectMatchingFilter.length,
-    avgPrice: avgPrice,
-    filteredHtmlText: filterElementsHTML
+    const cacheItem: CacheInfo = {
+      searchValue: request.filterValue,
+      keywords: searchKeywords,
+      filterAmount: objectMatchingFilter.length,
+      avgPrice: avgPrice,
+      filteredHtmlText: filterElementsHTML
+    }
+
+    port.postMessage({ type : 'populate', message : JSON.stringify(cacheItem)})
+
+    chrome.storage.local.get(["lastSearches"], function(result){
+      if (!result.lastSearches){
+        const cache: CacheInfo[] = []
+        cache.push(cacheItem)
+        chrome.storage.local.set({lastSearches: JSON.stringify(cache)});
+        console.log('init cache: ', cache)
+      } else {
+        let cachedSearches = JSON.parse(result.lastSearches)
+        console.log('testing: ', cachedSearches) // TODO: remove print statements
+        if (cachedSearches.length >= 3) {
+          const some = cachedSearches.slice(1).concat(cacheItem)
+          chrome.storage.local.set({lastSearches: JSON.stringify(some)});
+        } else {
+        console.log("look at else")
+          cachedSearches.push(cacheItem)
+          chrome.storage.local.set({lastSearches: JSON.stringify(cachedSearches)});
+        }
+      }
+    })
+
+    hidePagination("none");
   }
 
-  chrome.storage.local.get(["lastSearches"], function(result){
-    if (!result.lastSearches){
-      const cache: CacheInfo[] = []
-      cache.push(cacheItem)
-      chrome.storage.local.set({lastSearches: JSON.stringify(cache)});
-    } else {
-      let cachedSearches = JSON.parse(result.lastSearches)
-      console.log("CACHED searches: ", cachedSearches)
-      if (cachedSearches.length >= 3) {
-        cachedSearches.slice(1).push(cacheItem)
-        chrome.storage.local.set({lastSearches: JSON.stringify(cachedSearches)});
-        console.log("cached searches after FIFO: ", cachedSearches)
-      } else {
-        console.log("look at else")
-        cachedSearches.push(cacheItem)
-        console.log("cached sEaRches: ", cachedSearches)
-        chrome.storage.local.set({lastSearches: JSON.stringify(cachedSearches)});
-      }
-    }
-  })
-
-  hidePagination("none");
-}
+ }
 
 
 chrome.runtime.onConnect.addListener(function (port) {
