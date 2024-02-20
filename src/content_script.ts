@@ -1,4 +1,4 @@
-const originalHTML = document.documentElement.cloneNode(true); // deep clone of the original DOM
+const originalHTML = document.documentElement.innerHTML // TODO: push separate
 
 async function followLink(link: string): Promise<string | undefined> {
   try {
@@ -282,7 +282,7 @@ chrome.runtime.onConnect.addListener(function (port) {
           break;
         case "removefilter":
           hidePagination("inline");
-          document.documentElement.replaceChild(originalHTML, document.body);
+          document.documentElement.innerHTML = originalHTML // TODO: push separate
           break;
         default:
           console.log("No message from popup.");
