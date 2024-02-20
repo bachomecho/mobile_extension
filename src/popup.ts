@@ -6,19 +6,6 @@ chrome.tabs.query({ active: true, currentWindow: true }, async function (tabs) {
   port.postMessage({ message: "connectToContentScript" });
 });
 
-function getLocalStorage() { // TODO: update this with the new cache format
-  chrome.storage.local.get(
-    ["searchKeywords", "filterAmount", "avgPrice"],
-    function (result) {
-      document.getElementById("keywords")!.innerText = result.searchKeywords;
-      document.getElementById("count")!.innerText = result.filterAmount;
-      document.getElementById("avgprice")!.innerText =
-        result.avgPrice.toLocaleString("bg-BG") + " лв.";
-    }
-  );
-}
-getLocalStorage(); // getting local storage on intial load to show last search
-
 // get elements
 const inputElement = document.getElementById("filtervalue") as HTMLInputElement;
 inputElement.focus();
@@ -37,22 +24,26 @@ function executeFilter() {
   loading.textContent = "Зарежда...";
 
   port.onMessage.addListener(function (response) {
-    if (response.message == "loadingdone") loading.textContent = "";
-    if (response.message == "localStorageUpdated") getLocalStorage();
+    if (response.type === "warning" && response.message === "no listings found")
+      document.getElementById("warning")!.innerText = "Nqma namereni obqvi." // TODO: push separate
+    if (response.type === "populate") {
+      const cachedObject: CacheInfo = JSON.parse(response.message)
+      document.getElementById("warning")!.innerText = ''
+      document.getElementById("keywords")!.innerText = cachedObject.keywords
+      document.getElementById("count")!.innerText = cachedObject.filterAmount.toString()
+      document.getElementById("avgprice")!.innerText = cachedObject.avgPrice.toLocaleString("bg-BG") + " лв.";
+      loading.textContent = ""
+    }
   });
 }
 
 function removeFilter() {
   port.postMessage({ type: "popuprequest", message: "removefilter" });
-  const storageKeys = ["searchKeywords", "filterAmount", "avgPrice"];
-  chrome.storage.local.set(
-    Object.fromEntries(storageKeys.map((key) => [key, 0]))
-  );
-  setTimeout(() => console.log("Waiting for half a second."), 500);
-  getLocalStorage(); // getting cleared local storage
+  const storageKeys = ["keywords", "count", "avgprice"];
+  for (const key of storageKeys) 
+    document.getElementById(key)!.innerText = ''
 }
 
-// adding button functionality
 filterButton?.addEventListener("click", executeFilter, false);
 document.addEventListener("keypress", function (e) {
   if (e.key === "Enter") {
