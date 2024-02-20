@@ -1,4 +1,4 @@
-const originalHTML = document.documentElement.innerHTML // TODO: push separate
+const originalHTML = document.documentElement.innerHTML
 
 async function followLink(link: string): Promise<string | undefined> {
   try {
@@ -18,6 +18,7 @@ async function followLink(link: string): Promise<string | undefined> {
     console.error("Error fetching data:", error);
   }
 }
+
 function parseTitleFromLink(html: string): string {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, "text/html");
@@ -213,7 +214,6 @@ async function main(request: any, port: chrome.runtime.Port) {
   }
   else {
     populateWithFilteredElems(objectMatchingFilter)
-  port.postMessage({ message: "loadingdone" });
 
     const avgPrice = calculateAvgPrice(objectMatchingFilter);
 
@@ -246,13 +246,11 @@ async function main(request: any, port: chrome.runtime.Port) {
           const some = cachedSearches.slice(1).concat(cacheItem)
           chrome.storage.local.set({lastSearches: JSON.stringify(some)});
         } else {
-        console.log("look at else")
           cachedSearches.push(cacheItem)
           chrome.storage.local.set({lastSearches: JSON.stringify(cachedSearches)});
         }
       }
     })
-
     hidePagination("none");
   }
 
@@ -268,9 +266,7 @@ chrome.runtime.onConnect.addListener(function (port) {
         case "filter":
           chrome.storage.local.get(["lastSearches"], async function(result) {
             if (result.lastSearches){
-                console.log("lastsearches: ", result.lastSearches)
                 const cacheArray: CacheInfo[] = JSON.parse(result.lastSearches)
-                console.log("cache array length", cacheArray.length)
                 for (let item = 0; item < cacheArray.length; item++){
                   if (request.filterValue === cacheArray[item].searchValue &&
                     cacheArray[item].keywords === fullSearchKeywords(request.filterValue)) {
@@ -279,17 +275,15 @@ chrome.runtime.onConnect.addListener(function (port) {
                     return
                   }
                 }
-                console.log("call 1")
                 await main(request, port)
             } else {
-              console.log("call 2")
               await main(request, port)
             }
           })
           break;
         case "removefilter":
           hidePagination("inline");
-          document.documentElement.innerHTML = originalHTML // TODO: push separate
+          document.documentElement.innerHTML = originalHTML
           break;
         default:
           console.log("No message from popup.");
