@@ -237,10 +237,8 @@ async function main(request: any, port: chrome.runtime.Port) {
         const cache: CacheInfo[] = []
         cache.push(cacheItem)
         chrome.storage.local.set({lastSearches: JSON.stringify(cache)});
-        console.log('init cache: ', cache)
       } else {
         let cachedSearches = JSON.parse(result.lastSearches)
-        console.log('testing: ', cachedSearches) // TODO: remove print statements
         if (cachedSearches.length >= 3) {
           const some = cachedSearches.slice(1).concat(cacheItem)
           chrome.storage.local.set({lastSearches: JSON.stringify(some)});
@@ -252,7 +250,6 @@ async function main(request: any, port: chrome.runtime.Port) {
     })
     hidePagination("none");
   }
-
  }
 
 
