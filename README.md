@@ -1,7 +1,6 @@
 - [Purpose of this project](#purpose-of-this-project)
 - [Setup](#setup)
-- [How does the code work?](#how-does-the-code-work)
-- [How to test the code in the browser?](#how-to-test-the-code-in-the-browser)
+- [How to load extension in your browser?](#how-to-load-extension-in-your-browser)
 
 ## Purpose of this project
 
@@ -22,6 +21,11 @@ The code is bundled using webpack
 "build": "webpack --config webpack/webpack.config.js"
 ```
 
-## How does the code work?
+## How to load extension in your browser?
+1. Go to Chrome's extension dashboard in the browser
 
-## How to test the code in the browser?
+2. In the top right corner, enable developer mode
+
+3. In the top left corner, click 'Load unpacked'
+
+4. Select the dist directory in the project (NOTE: you must build with previously mentioned command first)
