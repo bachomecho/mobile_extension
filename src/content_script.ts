@@ -1,3 +1,4 @@
+// storing original page state so it can replace the filtered page when remove filter is called
 const originalHTML = document.documentElement.innerHTML
 
 async function followLink(link: string): Promise<string | undefined> {
@@ -56,10 +57,10 @@ async function createCarObjects(
   const parser = new DOMParser();
   const doc = parser.parseFromString(htmlText, "text/html")
 
-  const titleElements = doc.getElementsByClassName("mmm");
+  const titleElements = doc.getElementsByClassName("mmmL");
   const priceElements = doc.getElementsByClassName("price");
   const carObjList = new Array<CarElement>();
-  for (let i = 2; i < titleElements.length; i++) {
+  for (let i = 0; i < titleElements.length; i++) {
     // first two elements with class mmm are not car elements so they are skipped over
     const titleElement = titleElements[i] as HTMLElement;
     let textContent = titleElement.textContent ?? "empty";
@@ -73,14 +74,14 @@ async function createCarObjects(
     carObjList.push({
       element: titleElement,
       title: textContent,
-      price: priceElements[i - 2].textContent!,
+      price: priceElements[i].textContent!,
     });
   }
 
   // hide all car listings from first page (page will later be populated with listings that match filter)
   if (pageNumber === "1") {
-    const titleElems = document.getElementsByClassName("mmm"); // standard DOM is manipulated
-    for (let i = 2; i < titleElems.length; i++) {
+    const titleElems = document.getElementsByClassName("mmmL"); // standard DOM is manipulated
+    for (let i = 0; i < titleElems.length; i++) {
       const containingElement = findClosestAncestorWithClass(
         titleElems[i],
         "tablereset"
@@ -123,7 +124,7 @@ function calculateAvgPrice(elements: CarElement[]): number {
   }
   prices = prices.filter((elem) => elem);
 
-  if (prices) {
+  if (prices.length !== 0) {
     const avgPriceBGN = Math.round(prices.reduce((a, b) => a + b) / prices.length)
     return avgPriceBGN;
   }
@@ -141,7 +142,12 @@ function createPaginationUrls(): string[] {
 
   let paginationUrls = new Array<string>();
   for (let i = 1; i <= numPages; i++) {
-    paginationUrls.push(window.location.href.replace(/.$/, i.toString()));
+    const splitUrl: string[] = window.location.href.split('/')
+    if (splitUrl.at(-1)?.startsWith('p')){
+      paginationUrls.push(window.location.href.replace(/.$/, i.toString()));
+    } else {
+      paginationUrls.push(window.location.href + '/p-1')
+    }
   }
   return paginationUrls;
 }
@@ -202,12 +208,12 @@ function populateWithFilteredElems(matchingElements: CarElement[]){
 }
 
 async function main(request: any, port: chrome.runtime.Port) {
-  const flatGeneralCarObject = await extractAllListings()
+  const flatGeneralCarObject = await extractAllListings() // TODO: assert that keywords are present in the url, otherwise urls can point to something completely unrelated to the search
   const objectMatchingFilter = matchElement(
     flatGeneralCarObject,
     request.filterValue as string
   );
-  if (!objectMatchingFilter) {
+  if (objectMatchingFilter.length === 0) {
     port.postMessage({ type: 'warning', message: 'no listings found'})
     return
   }
@@ -222,7 +228,7 @@ async function main(request: any, port: chrome.runtime.Port) {
 
     const filterElementsHTML = document.documentElement.innerHTML;
 
-    const cacheItem: CacheInfo = {
+    const cacheItem: SearchInfo = {
       searchValue: request.filterValue,
       keywords: searchKeywords,
       filterAmount: objectMatchingFilter.length,
@@ -234,7 +240,7 @@ async function main(request: any, port: chrome.runtime.Port) {
 
     chrome.storage.local.get(["lastSearches"], function(result){
       if (!result.lastSearches){
-        const cache: CacheInfo[] = []
+        const cache: SearchInfo[] = []
         cache.push(cacheItem)
         chrome.storage.local.set({lastSearches: JSON.stringify(cache)});
       } else {
@@ -262,10 +268,14 @@ chrome.runtime.onConnect.addListener(function (port) {
         case "filter":
           chrome.storage.local.get(["lastSearches"], async function(result) {
             if (result.lastSearches){
-                const cacheArray: CacheInfo[] = JSON.parse(result.lastSearches)
+                const cacheArray: SearchInfo[] = JSON.parse(result.lastSearches)
                 for (let item = 0; item < cacheArray.length; item++){
+                  /*
+                  same search value can be used for different car brands and models, so the second condition
+                  ensures that there is no cache hit if same search value has been cached but for different car brand
+                  */
                   if (request.filterValue === cacheArray[item].searchValue &&
-                    cacheArray[item].keywords === fullSearchKeywords(request.filterValue)) {
+                    cacheArray[item].keywords === fullSearchKeywords(request.filterValue)) { // TODO: is first condition needed?
                     document.documentElement.innerHTML = cacheArray[item].filteredHtmlText
                     port.postMessage({ type : 'populate', message : JSON.stringify(cacheArray[item])})
                     return
