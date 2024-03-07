@@ -6,6 +6,22 @@ chrome.tabs.query({ active: true, currentWindow: true }, async function (tabs) {
   port.postMessage({ message: "connectToContentScript" });
 });
 
+function populateData(data: SearchInfo) {
+    document.getElementById("warning")!.innerText = ''
+    document.getElementById("keywords")!.innerText = data.keywords
+    document.getElementById("count")!.innerText = data.filterAmount.toString()
+    document.getElementById("avgprice")!.innerText = data.avgPrice.toLocaleString("bg-BG") + " лв.";
+
+}
+
+// when popup is opened, load data last searched query
+chrome.storage.local.get(['lastSearches'], function(result) {
+  if (result.lastSearches){
+    const lastCachedItem: SearchInfo = JSON.parse(result.lastSearches).at(-1)
+    populateData(lastCachedItem)
+  }
+})
+
 // get elements
 const inputElement = document.getElementById("filtervalue") as HTMLInputElement;
 inputElement.focus();
@@ -25,13 +41,10 @@ function executeFilter() {
 
   port.onMessage.addListener(function (response) {
     if (response.type === "warning" && response.message === "no listings found")
-      document.getElementById("warning")!.innerText = "Nqma namereni obqvi." // TODO: push separate
+      document.getElementById("warning")!.innerText = "Няма намерени обяви"
     if (response.type === "populate") {
-      const cachedObject: CacheInfo = JSON.parse(response.message)
-      document.getElementById("warning")!.innerText = ''
-      document.getElementById("keywords")!.innerText = cachedObject.keywords
-      document.getElementById("count")!.innerText = cachedObject.filterAmount.toString()
-      document.getElementById("avgprice")!.innerText = cachedObject.avgPrice.toLocaleString("bg-BG") + " лв.";
+      const cachedObject: SearchInfo = JSON.parse(response.message)
+      populateData(cachedObject)
       loading.textContent = ""
     }
   });
@@ -40,7 +53,7 @@ function executeFilter() {
 function removeFilter() {
   port.postMessage({ type: "popuprequest", message: "removefilter" });
   const storageKeys = ["keywords", "count", "avgprice"];
-  for (const key of storageKeys) 
+  for (const key of storageKeys)
     document.getElementById(key)!.innerText = ''
 }
 
