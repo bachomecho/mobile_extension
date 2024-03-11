@@ -1,5 +1,5 @@
 // storing original page state so it can replace the filtered page when remove filter is called
-const originalHTML = document.documentElement.innerHTML
+const originalHTML = document.documentElement.innerHTML;
 
 async function followLink(link: string): Promise<string | undefined> {
   try {
@@ -27,7 +27,10 @@ function parseTitleFromLink(html: string): string {
   return doc.getElementsByTagName("h1")[0].textContent!;
 }
 
-function findClosestAncestorWithClass(element: Element, className: string): Element | null {
+function findClosestAncestorWithClass(
+  element: Element,
+  className: string
+): Element | null {
   if (element.classList.contains(className)) {
     return element;
   }
@@ -55,7 +58,7 @@ async function createCarObjects(
   pageNumber: string
 ): Promise<CarElement[]> {
   const parser = new DOMParser();
-  const doc = parser.parseFromString(htmlText, "text/html")
+  const doc = parser.parseFromString(htmlText, "text/html");
 
   const titleElements = doc.getElementsByClassName("mmmL");
   const priceElements = doc.getElementsByClassName("price");
@@ -99,20 +102,19 @@ function matchElement(
 ): CarElement[] {
   const matchArray = elementArray.filter((elem) =>
     elem.title
-      .replace(/\s/g, "") //TODO: if search has spaces, this will be a problem
+      .replace(/\s/g, "") //TODO: if search has spaces, this will be a problem, assert that search value should only be one word
       .toLowerCase()
       .includes(filterValue.toLowerCase())
   );
-  return matchArray ? matchArray : []
+  return matchArray ? matchArray : [];
 }
 
 // calculates the average price of the filtered elements in BGN
 function calculateAvgPrice(elements: CarElement[]): number {
-  if (!elements) return 0
+  if (!elements) return 0;
   let prices: number[] = [];
   for (let i = 0; i < elements.length; i++) {
     if (!elements[i].price.trim().startsWith("Запитване")) {
-
       const splitPrice = elements[i].price.trim().split(" ");
       let numPrice = parseInt(splitPrice.slice(0, 2).join(""));
       const currency = splitPrice.at(-1);
@@ -125,11 +127,13 @@ function calculateAvgPrice(elements: CarElement[]): number {
   prices = prices.filter((elem) => elem);
 
   if (prices.length !== 0) {
-    const avgPriceBGN = Math.round(prices.reduce((a, b) => a + b) / prices.length)
+    const avgPriceBGN = Math.round(
+      prices.reduce((a, b) => a + b) / prices.length
+    );
     return avgPriceBGN;
   }
   // it is possible that there are elements but they do not have prices in which case we return an everage of zero
-  return 0
+  return 0;
 }
 
 function createPaginationUrls(): string[] {
@@ -142,11 +146,11 @@ function createPaginationUrls(): string[] {
 
   let paginationUrls = new Array<string>();
   for (let i = 1; i <= numPages; i++) {
-    const splitUrl: string[] = window.location.href.split('/')
-    if (splitUrl.at(-1)?.startsWith('p')){
+    const splitUrl: string[] = window.location.href.split("/");
+    if (splitUrl.at(-1)?.startsWith("p")) {
       paginationUrls.push(window.location.href.replace(/.$/, i.toString()));
     } else {
-      paginationUrls.push(window.location.href + '/p-1')
+      paginationUrls.push(window.location.href + "/p-1");
     }
   }
   return paginationUrls;
@@ -171,16 +175,20 @@ function fullSearchKeywords(filterValue: string): string {
   return brandModel + " " + filterValue;
 }
 
-async function extractAllListings(): Promise<CarElement[]>{
+async function extractAllListings(): Promise<CarElement[]> {
   const urls = createPaginationUrls();
   let generalCarObject: Array<CarElement[]> = [];
+
   await Promise.all(
     urls.map(async (url) => {
       const response = await fetch(url);
       const decoder = new TextDecoder("windows-1251");
       const buffer = await response.arrayBuffer();
       const htmlString = decoder.decode(buffer);
-      const cars = await createCarObjects(htmlString, url.charAt(url.length - 1));
+      const cars = await createCarObjects(
+        htmlString,
+        url.charAt(url.length - 1)
+      );
       generalCarObject.push(cars);
     })
   );
@@ -188,12 +196,10 @@ async function extractAllListings(): Promise<CarElement[]>{
 }
 
 // populate first page with filtered elements
-function populateWithFilteredElems(matchingElements: CarElement[]){
+function populateWithFilteredElems(matchingElements: CarElement[]) {
   // finding ancestor elements
   const filteredElements = matchingElements
-    .map((elem) =>
-      findClosestAncestorWithClass(elem.element, "tablereset")
-    )
+    .map((elem) => findClosestAncestorWithClass(elem.element, "tablereset"))
     .filter((elem) => elem) as Element[];
 
   // 'break' element before car listing begin -> append filtered elements after it
@@ -208,23 +214,20 @@ function populateWithFilteredElems(matchingElements: CarElement[]){
 }
 
 async function main(request: any, port: chrome.runtime.Port) {
-  const flatGeneralCarObject = await extractAllListings() // TODO: assert that keywords are present in the url, otherwise urls can point to something completely unrelated to the search
+  const flatGeneralCarObject = await extractAllListings(); // TODO: assert that keywords are present in the url, otherwise urls can point to something completely unrelated to the search
   const objectMatchingFilter = matchElement(
     flatGeneralCarObject,
     request.filterValue as string
   );
   if (objectMatchingFilter.length === 0) {
-    port.postMessage({ type: 'warning', message: 'no listings found'})
-    return
-  }
-  else {
-    populateWithFilteredElems(objectMatchingFilter)
+    port.postMessage({ type: "warning", message: "no listings found" });
+    return;
+  } else {
+    populateWithFilteredElems(objectMatchingFilter);
 
     const avgPrice = calculateAvgPrice(objectMatchingFilter);
 
-    const searchKeywords = fullSearchKeywords(
-      request.filterValue as string
-    );
+    const searchKeywords = fullSearchKeywords(request.filterValue as string);
 
     const filterElementsHTML = document.documentElement.innerHTML;
 
@@ -233,31 +236,32 @@ async function main(request: any, port: chrome.runtime.Port) {
       keywords: searchKeywords,
       filterAmount: objectMatchingFilter.length,
       avgPrice: avgPrice,
-      filteredHtmlText: filterElementsHTML
-    }
+      filteredHtmlText: filterElementsHTML,
+    };
 
-    port.postMessage({ type : 'populate', message : JSON.stringify(cacheItem)})
+    port.postMessage({ type: "populate", message: JSON.stringify(cacheItem) });
 
-    chrome.storage.local.get(["lastSearches"], function(result){
-      if (!result.lastSearches){
-        const cache: SearchInfo[] = []
-        cache.push(cacheItem)
-        chrome.storage.local.set({lastSearches: JSON.stringify(cache)});
+    chrome.storage.local.get(["lastSearches"], function (result) {
+      if (!result.lastSearches) {
+        const cache: SearchInfo[] = [];
+        cache.push(cacheItem);
+        chrome.storage.local.set({ lastSearches: JSON.stringify(cache) });
       } else {
-        let cachedSearches = JSON.parse(result.lastSearches)
+        let cachedSearches = JSON.parse(result.lastSearches);
         if (cachedSearches.length >= 3) {
-          const some = cachedSearches.slice(1).concat(cacheItem)
-          chrome.storage.local.set({lastSearches: JSON.stringify(some)});
+          const some = cachedSearches.slice(1).concat(cacheItem);
+          chrome.storage.local.set({ lastSearches: JSON.stringify(some) });
         } else {
-          cachedSearches.push(cacheItem)
-          chrome.storage.local.set({lastSearches: JSON.stringify(cachedSearches)});
+          cachedSearches.push(cacheItem);
+          chrome.storage.local.set({
+            lastSearches: JSON.stringify(cachedSearches),
+          });
         }
       }
-    })
+    });
     hidePagination("none");
   }
- }
-
+}
 
 chrome.runtime.onConnect.addListener(function (port) {
   console.assert(port.name === "MOBILE_POPUP");
@@ -266,30 +270,38 @@ chrome.runtime.onConnect.addListener(function (port) {
     if (request.type === "popuprequest") {
       switch (request.message) {
         case "filter":
-          chrome.storage.local.get(["lastSearches"], async function(result) {
-            if (result.lastSearches){
-                const cacheArray: SearchInfo[] = JSON.parse(result.lastSearches)
-                for (let item = 0; item < cacheArray.length; item++){
-                  /*
+          chrome.storage.local.get(["lastSearches"], async function (result) {
+            if (result.lastSearches) {
+              const cacheArray: SearchInfo[] = JSON.parse(result.lastSearches);
+              for (let item = 0; item < cacheArray.length; item++) {
+                /*
                   same search value can be used for different car brands and models, so the second condition
                   ensures that there is no cache hit if same search value has been cached but for different car brand
                   */
-                  if (request.filterValue === cacheArray[item].searchValue &&
-                    cacheArray[item].keywords === fullSearchKeywords(request.filterValue)) { // TODO: is first condition needed?
-                    document.documentElement.innerHTML = cacheArray[item].filteredHtmlText
-                    port.postMessage({ type : 'populate', message : JSON.stringify(cacheArray[item])})
-                    return
-                  }
+                if (
+                  request.filterValue === cacheArray[item].searchValue &&
+                  cacheArray[item].keywords ===
+                    fullSearchKeywords(request.filterValue)
+                ) {
+                  // TODO: is first condition needed?
+                  document.documentElement.innerHTML =
+                    cacheArray[item].filteredHtmlText;
+                  port.postMessage({
+                    type: "populate",
+                    message: JSON.stringify(cacheArray[item]),
+                  });
+                  return;
                 }
-                await main(request, port)
+              }
+              await main(request, port);
             } else {
-              await main(request, port)
+              await main(request, port);
             }
-          })
+          });
           break;
         case "removefilter":
           hidePagination("inline");
-          document.documentElement.innerHTML = originalHTML
+          document.documentElement.innerHTML = originalHTML;
           break;
         default:
           console.log("No message from popup.");
