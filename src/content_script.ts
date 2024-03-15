@@ -46,13 +46,6 @@ function findClosestAncestorWithClass(
   return null;
 }
 
-interface CarElement {
-  element: HTMLElement;
-  title: string;
-  price: string;
-  currency?: "лв" | "EUR";
-}
-
 async function createCarObjects(
   htmlText: string,
   pageNumber: string
