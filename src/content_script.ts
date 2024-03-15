@@ -138,9 +138,10 @@ function createPaginationUrls(): string[] {
   const numPages = parseInt(pagesString);
 
   let paginationUrls = new Array<string>();
+  const splitUrl: string[] = window.location.href.split("/");
   for (let i = 1; i <= numPages; i++) {
-    const splitUrl: string[] = window.location.href.split("/");
-    if (splitUrl.at(-1)?.startsWith("p")) {
+    if (splitUrl.at(-1)?.startsWith("p-")) {
+      splitUrl.at(-2) + " " + splitUrl.at(-3);
       paginationUrls.push(window.location.href.replace(/.$/, i.toString()));
     } else {
       paginationUrls.push(window.location.href + "/p-1");
@@ -220,7 +221,15 @@ async function main(request: any, port: chrome.runtime.Port) {
 
     const avgPrice = calculateAvgPrice(objectMatchingFilter);
 
-    const searchKeywords = fullSearchKeywords(request.filterValue as string);
+    const searchKeywords = fullSearchKeywords(request.filterValue as string); // this always has length of 3
+
+    if (
+      !objectMatchingFilter[0].title
+        .toLowerCase()
+        .includes(searchKeywords.slice(0, 2))
+    ) {
+      throw new Error("Parsed objects do not coincide with desired search.");
+    } // potentially urls have been manipulated wrong and we are parsing objects for different search than intended
 
     const filterElementsHTML = document.documentElement.innerHTML;
 
