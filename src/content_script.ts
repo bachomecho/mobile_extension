@@ -141,7 +141,6 @@ function createPaginationUrls(): string[] {
   const splitUrl: string[] = window.location.href.split("/");
   for (let i = 1; i <= numPages; i++) {
     if (splitUrl.at(-1)?.startsWith("p-")) {
-      splitUrl.at(-2) + " " + splitUrl.at(-3);
       paginationUrls.push(window.location.href.replace(/.$/, i.toString()));
     } else {
       paginationUrls.push(window.location.href + "/p-1");
