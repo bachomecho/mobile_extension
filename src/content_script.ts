@@ -222,14 +222,6 @@ async function main(request: any, port: chrome.runtime.Port) {
 
     const searchKeywords = fullSearchKeywords(request.filterValue as string); // this always has length of 3
 
-    if (
-      !objectMatchingFilter[0].title
-        .toLowerCase()
-        .includes(searchKeywords.slice(0, 2))
-    ) {
-      throw new Error("Parsed objects do not coincide with desired search.");
-    } // potentially urls have been manipulated wrong and we are parsing objects for different search than intended
-
     const filterElementsHTML = document.documentElement.innerHTML;
 
     const cacheItem: SearchInfo = {
