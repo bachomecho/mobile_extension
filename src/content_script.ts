@@ -95,8 +95,8 @@ function matchElement(
 ): CarElement[] {
   const matchArray = elementArray.filter((elem) =>
     elem.title
-      .replace(/\s/g, "") //TODO: if search has spaces, this will be a problem, assert that search value should only be one word
-      .toLowerCase()
+      .split(" ")
+      .map((word) => word.toLowerCase())
       .includes(filterValue.toLowerCase())
   );
   return matchArray ? matchArray : [];
@@ -207,18 +207,15 @@ function populateWithFilteredElems(matchingElements: CarElement[]) {
 }
 
 async function main(request: any, port: chrome.runtime.Port) {
-  const flatGeneralCarObject = await extractAllListings(); // TODO: assert that keywords are present in the url, otherwise urls can point to something completely unrelated to the search
-  const objectMatchingFilter = matchElement(
-    flatGeneralCarObject,
-    request.filterValue as string
-  );
-  if (objectMatchingFilter.length === 0) {
+  const cars = await extractAllListings(); // TODO: assert that keywords are present in the url, otherwise urls can point to something completely unrelated to the search
+  const carsMatchingFilter = matchElement(cars, request.filterValue as string);
+  if (carsMatchingFilter.length === 0) {
     port.postMessage({ type: "warning", message: "no listings found" });
     return;
   } else {
-    populateWithFilteredElems(objectMatchingFilter);
+    populateWithFilteredElems(carsMatchingFilter);
 
-    const avgPrice = calculateAvgPrice(objectMatchingFilter);
+    const avgPrice = calculateAvgPrice(carsMatchingFilter);
 
     const searchKeywords = fullSearchKeywords(request.filterValue as string); // this always has length of 3
 
@@ -227,7 +224,7 @@ async function main(request: any, port: chrome.runtime.Port) {
     const cacheItem: SearchInfo = {
       searchValue: request.filterValue,
       keywords: searchKeywords,
-      filterAmount: objectMatchingFilter.length,
+      filterAmount: carsMatchingFilter.length,
       avgPrice: avgPrice,
       filteredHtmlText: filterElementsHTML,
     };
