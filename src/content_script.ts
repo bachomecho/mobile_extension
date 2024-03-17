@@ -138,13 +138,8 @@ function createPaginationUrls(): string[] {
   const numPages = parseInt(pagesString);
 
   let paginationUrls = new Array<string>();
-  const splitUrl: string[] = window.location.href.split("/");
   for (let i = 1; i <= numPages; i++) {
-    if (splitUrl.at(-1)?.startsWith("p-")) {
-      paginationUrls.push(window.location.href.replace(/.$/, i.toString()));
-    } else {
-      paginationUrls.push(window.location.href + "/p-1");
-    }
+    paginationUrls.push(window.location.href + `/p-${i}`);
   }
   return paginationUrls;
 }
