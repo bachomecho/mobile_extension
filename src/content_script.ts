@@ -1,5 +1,7 @@
 // storing original page state so it can replace the filtered page when remove filter is called
 const originalHTML = document.documentElement.innerHTML;
+// TODO: organise in classes, include search guards (already coded out)
+// TODO: fix display when no listings are found
 
 async function followLink(link: string): Promise<string | undefined> {
   try {
@@ -46,10 +48,7 @@ function findClosestAncestorWithClass(
   return null;
 }
 
-async function createCarObjects(
-  htmlText: string,
-  pageNumber: string
-): Promise<CarElement[]> {
+async function createCarObjects(htmlText: string): Promise<CarElement[]> {
   const parser = new DOMParser();
   const doc = parser.parseFromString(htmlText, "text/html");
 
@@ -72,18 +71,6 @@ async function createCarObjects(
       title: textContent,
       price: priceElements[i].textContent!,
     });
-  }
-
-  // hide all car listings from first page (page will later be populated with listings that match filter)
-  if (pageNumber === "1") {
-    const titleElems = document.getElementsByClassName("mmmL"); // standard DOM is manipulated
-    for (let i = 0; i < titleElems.length; i++) {
-      const containingElement = findClosestAncestorWithClass(
-        titleElems[i],
-        "tablereset"
-      ) as HTMLElement;
-      containingElement!.style.display = "none";
-    }
   }
 
   return carObjList;
@@ -173,14 +160,22 @@ async function extractAllListings(): Promise<CarElement[]> {
       const decoder = new TextDecoder("windows-1251");
       const buffer = await response.arrayBuffer();
       const htmlString = decoder.decode(buffer);
-      const cars = await createCarObjects(
-        htmlString,
-        url.charAt(url.length - 1)
-      );
+      const cars = await createCarObjects(htmlString);
       generalCarObject.push(cars);
     })
   );
   return generalCarObject.flat(2);
+}
+
+function hideFirstPage() {
+  const titleElems = document.getElementsByClassName("mmmL");
+  for (let i = 0; i < titleElems.length; i++) {
+    const containingElement = findClosestAncestorWithClass(
+      titleElems[i],
+      "tablereset"
+    ) as HTMLElement;
+    containingElement!.style.display = "none";
+  }
 }
 
 // populate first page with filtered elements
@@ -208,6 +203,7 @@ async function main(request: any, port: chrome.runtime.Port) {
     port.postMessage({ type: "warning", message: "no listings found" });
     return;
   } else {
+    hideFirstPage(); // hide elements on the first page, so we can populate it with filtered elements
     populateWithFilteredElems(carsMatchingFilter);
 
     const avgPrice = calculateAvgPrice(carsMatchingFilter);
