@@ -283,6 +283,7 @@ chrome.runtime.onConnect.addListener(function (port) {
         case "removefilter":
           hidePagination("inline");
           document.documentElement.innerHTML = originalHTML;
+          port.postMessage({ message: "restoreElements" });
           break;
         default:
           console.log("No message from popup.");

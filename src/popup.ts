@@ -41,8 +41,20 @@ function executeFilter() {
   loading.textContent = "Зарежда...";
 
   port.onMessage.addListener(function (response) {
-    if (response.type === "warning" && response.message === "no listings found")
+    if (
+      response.type === "warning" &&
+      response.message === "no listings found"
+    ) {
       document.getElementById("warning")!.innerText = "Няма намерени обяви";
+      for (const key of [
+        "searchTerm",
+        "remainingelementcount",
+        "avgpricediv",
+      ]) {
+        document.getElementById(key)!.style.display = "none";
+      }
+      loading.textContent = "";
+    }
     if (response.type === "populate") {
       const cachedObject: SearchInfo = JSON.parse(response.message);
       populateData(cachedObject);
@@ -53,6 +65,18 @@ function executeFilter() {
 
 function removeFilter() {
   port.postMessage({ type: "popuprequest", message: "removefilter" });
+  port.onMessage.addListener(function (response) {
+    if (response.message === "restoreElements") {
+      for (const key of [
+        "searchTerm",
+        "remainingelementcount",
+        "avgpricediv",
+      ]) {
+        document.getElementById(key)!.style.display = "block";
+      }
+      document.getElementById("warning")!.innerText = "";
+    }
+  });
   const storageKeys = ["keywords", "count", "avgprice"];
   for (const key of storageKeys) document.getElementById(key)!.innerText = "";
 }
