@@ -1,7 +1,6 @@
 // storing original page state so it can replace the filtered page when remove filter is called
 const originalHTML = document.documentElement.innerHTML;
 // TODO: organise in classes, include search guards (already coded out)
-// TODO: fix display when no listings are found
 
 async function followLink(link: string): Promise<string | undefined> {
   try {
@@ -48,34 +47,6 @@ function findClosestAncestorWithClass(
   return null;
 }
 
-async function createCarObjects(htmlText: string): Promise<CarElement[]> {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(htmlText, "text/html");
-
-  const titleElements = doc.getElementsByClassName("mmmL");
-  const priceElements = doc.getElementsByClassName("price");
-  const carObjList = new Array<CarElement>();
-  for (let i = 0; i < titleElements.length; i++) {
-    // first two elements with class mmm are not car elements so they are skipped over
-    const titleElement = titleElements[i] as HTMLElement;
-    let textContent = titleElement.textContent ?? "empty";
-    if (textContent.includes("...")) {
-      const link = titleElement.getAttribute("href");
-      if (link) {
-        const html = await followLink(link);
-        textContent = parseTitleFromLink(html!);
-      }
-    }
-    carObjList.push({
-      element: titleElement,
-      title: textContent,
-      price: priceElements[i].textContent!,
-    });
-  }
-
-  return carObjList;
-}
-
 function matchElement(
   elementArray: CarElement[],
   filterValue: string
@@ -116,21 +87,6 @@ function calculateAvgPrice(elements: CarElement[]): number {
   return 0;
 }
 
-function createPaginationUrls(): string[] {
-  let pagesString: string =
-    document
-      .getElementsByClassName("pageNumbersInfo")[0]
-      .textContent?.split(" ")
-      .at(-1) ?? "0";
-  const numPages = parseInt(pagesString);
-
-  let paginationUrls = new Array<string>();
-  for (let i = 1; i <= numPages; i++) {
-    paginationUrls.push(window.location.href + `/p-${i}`);
-  }
-  return paginationUrls;
-}
-
 function hidePagination(hide: "none" | "inline"): void {
   document.querySelectorAll("span.pageNumbersSelect").forEach((elem) => {
     const paginationElem = findClosestAncestorWithClass(
@@ -150,21 +106,66 @@ function fullSearchKeywords(filterValue: string): string {
   return brandModel + " " + filterValue;
 }
 
-async function extractAllListings(): Promise<CarElement[]> {
-  const urls = createPaginationUrls();
-  let generalCarObject: Array<CarElement[]> = [];
+class Parser {
+  createPaginationUrls(): string[] {
+    let pagesString: string =
+      document
+        .getElementsByClassName("pageNumbersInfo")[0]
+        .textContent?.split(" ")
+        .at(-1) ?? "0";
+    const numPages = parseInt(pagesString);
 
-  await Promise.all(
-    urls.map(async (url) => {
-      const response = await fetch(url);
-      const decoder = new TextDecoder("windows-1251");
-      const buffer = await response.arrayBuffer();
-      const htmlString = decoder.decode(buffer);
-      const cars = await createCarObjects(htmlString);
-      generalCarObject.push(cars);
-    })
-  );
-  return generalCarObject.flat(2);
+    let paginationUrls = new Array<string>();
+    for (let i = 1; i <= numPages; i++) {
+      paginationUrls.push(window.location.href + `/p-${i}`);
+    }
+    return paginationUrls;
+  }
+
+  async createCarObjects(htmlText: string): Promise<CarElement[]> {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlText, "text/html");
+
+    const titleElements = doc.getElementsByClassName("mmmL");
+    const priceElements = doc.getElementsByClassName("price");
+    const carObjList = new Array<CarElement>();
+    for (let i = 0; i < titleElements.length; i++) {
+      // first two elements with class mmm are not car elements so they are skipped over
+      const titleElement = titleElements[i] as HTMLElement;
+      let textContent = titleElement.textContent ?? "empty";
+      if (textContent.includes("...")) {
+        const link = titleElement.getAttribute("href");
+        if (link) {
+          const html = await followLink(link);
+          textContent = parseTitleFromLink(html!); // the three dots in a title obfuscate the full title, which is why we follow the link and parse the full title from the subsequent page
+        }
+      }
+      carObjList.push({
+        element: titleElement,
+        title: textContent,
+        price: priceElements[i].textContent!,
+      });
+    }
+
+    return carObjList;
+  }
+
+  async extractAllListings(): Promise<CarElement[]> {
+    let generalCarObject: Array<CarElement[]> = [];
+    const urls = this.createPaginationUrls();
+
+    await Promise.all(
+      urls.map(async (url) => {
+        const response = await fetch(url);
+        const decoder = new TextDecoder("windows-1251");
+        const buffer = await response.arrayBuffer();
+        const htmlString = decoder.decode(buffer);
+        const cars = await this.createCarObjects(htmlString);
+        generalCarObject.push(cars);
+      })
+    );
+    return generalCarObject.flat(2);
+  }
 }
 
 function hideFirstPage() {
@@ -197,8 +198,11 @@ function populateWithFilteredElems(matchingElements: CarElement[]) {
 }
 
 async function main(request: any, port: chrome.runtime.Port) {
-  const cars = await extractAllListings(); // TODO: assert that keywords are present in the url, otherwise urls can point to something completely unrelated to the search
+  const parser = new Parser();
+  const cars = await parser.extractAllListings();
+
   const carsMatchingFilter = matchElement(cars, request.filterValue as string);
+
   if (carsMatchingFilter.length === 0) {
     port.postMessage({ type: "warning", message: "no listings found" });
     return;
