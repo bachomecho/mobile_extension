@@ -6,6 +6,15 @@ interface SearchInfo {
   filteredHtmlText: string;
 }
 
+interface ChannelRequest {
+  type: "popuprequest";
+  message: string;
+}
+
+interface FilterRequest extends ChannelRequest {
+  filterValue: string;
+}
+
 interface CarElement {
   element: HTMLElement;
   title: string;

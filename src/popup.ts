@@ -31,11 +31,12 @@ const removeFilterButton = document.getElementById("removefilter");
 
 // button functions
 function executeFilter() {
-  port.postMessage({
+  const req: FilterRequest = {
     type: "popuprequest",
     message: "filter",
     filterValue: inputElement.value,
-  });
+  };
+  port.postMessage(req);
 
   const loading = document.getElementById("loading")!;
   loading.textContent = "Зарежда...";

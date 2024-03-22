@@ -214,6 +214,20 @@ async function main(request: any, port: chrome.runtime.Port) {
 
     const searchKeywords = fullSearchKeywords(request.filterValue as string); // this always has length of 3
 
+    /*
+    check if parsed car listings coincide with car brand and model extracted directly from the page;
+    if url structure changes, it can happen that random urls are generated and car listings are extracted for brands and models
+    that have nothing to do with the car and the brand you currently have loaded in front of you
+    */
+    if (
+      !carsMatchingFilter[0].title
+        .trim()
+        .toLowerCase()
+        .includes(searchKeywords.split(" ").slice(0, 2).join(" ").toLowerCase())
+    ) {
+      throw new Error("Parsed objects do not coincide with desired search.");
+    }
+
     const filterElementsHTML = document.documentElement.innerHTML;
 
     const cacheItem: SearchInfo = {
