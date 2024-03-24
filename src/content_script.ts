@@ -278,9 +278,8 @@ chrome.runtime.onConnect.addListener(function (port) {
                   ensures that there is no cache hit if same search value has been cached but for different car brand
                   */
                 if (
-                  request.filterValue === cacheArray[item].searchValue &&
                   cacheArray[item].keywords ===
-                    fullSearchKeywords(request.filterValue)
+                  fullSearchKeywords(request.filterValue)
                 ) {
                   // TODO: is first condition needed?
                   document.documentElement.innerHTML =
