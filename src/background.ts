@@ -1,4 +1,4 @@
-interface SearchInfo {
+export interface SearchInfo {
   searchValue: string;
   keywords: string;
   filterAmount: number;
@@ -6,16 +6,16 @@ interface SearchInfo {
   filteredHtmlText: string;
 }
 
-interface ChannelRequest {
+export interface ChannelRequest {
   type: "popuprequest";
   message: string;
 }
 
-interface FilterRequest extends ChannelRequest {
+export interface FilterRequest extends ChannelRequest {
   filterValue: string;
 }
 
-interface CarElement {
+export interface CarElement {
   element: HTMLElement;
   title: string;
   price: string;

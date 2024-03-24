@@ -8,6 +8,8 @@ module.exports = {
     content_script: path.resolve(__dirname, "..", "src", "content_script.ts"),
     background: path.resolve(__dirname, "..", "src", "background.ts"),
     popup: path.resolve(__dirname, "..", "src", "popup.ts"),
+    parser: path.resolve(__dirname, "..", "src/lib", "parser.ts"),
+    searchValidator: path.resolve(__dirname, "..", "src/lib", "searchValidator.ts"),
   },
   output: {
     path: path.join(__dirname, "../dist"),

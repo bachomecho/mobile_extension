@@ -1,32 +1,6 @@
-// storing original page state so it can replace the filtered page when remove filter is called
-const originalHTML = document.documentElement.innerHTML;
-// TODO: organise in classes, include search guards (already coded out)
-
-async function followLink(link: string): Promise<string | undefined> {
-  try {
-    const response = await fetch(link);
-
-    if (!response.ok) {
-      throw new Error(
-        `Failed to fetch longer title of listing: ${response.status} ${response.statusText}`
-      );
-    }
-
-    const decoder = new TextDecoder("windows-1251");
-    const buffer = await response.arrayBuffer();
-    const htmlString = decoder.decode(buffer);
-    return htmlString;
-  } catch (error) {
-    console.error("Error fetching data:", error);
-  }
-}
-
-function parseTitleFromLink(html: string): string {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, "text/html");
-  // getting title from follow link
-  return doc.getElementsByTagName("h1")[0].textContent!;
-}
+import { CarElement, SearchInfo } from "./background";
+import Parser from "./lib/parser";
+import isCorrectSearch from "./lib/searchValidator";
 
 function findClosestAncestorWithClass(
   element: Element,
@@ -106,68 +80,6 @@ function fullSearchKeywords(filterValue: string): string {
   return brandModel + " " + filterValue;
 }
 
-class Parser {
-  createPaginationUrls(): string[] {
-    let pagesString: string =
-      document
-        .getElementsByClassName("pageNumbersInfo")[0]
-        .textContent?.split(" ")
-        .at(-1) ?? "0";
-    const numPages = parseInt(pagesString);
-
-    let paginationUrls = new Array<string>();
-    for (let i = 1; i <= numPages; i++) {
-      paginationUrls.push(window.location.href + `/p-${i}`);
-    }
-    return paginationUrls;
-  }
-
-  async createCarObjects(htmlText: string): Promise<CarElement[]> {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(htmlText, "text/html");
-
-    const titleElements = doc.getElementsByClassName("mmmL");
-    const priceElements = doc.getElementsByClassName("price");
-    const carObjList = new Array<CarElement>();
-    for (let i = 0; i < titleElements.length; i++) {
-      // first two elements with class mmm are not car elements so they are skipped over
-      const titleElement = titleElements[i] as HTMLElement;
-      let textContent = titleElement.textContent ?? "empty";
-      if (textContent.includes("...")) {
-        const link = titleElement.getAttribute("href");
-        if (link) {
-          const html = await followLink(link);
-          textContent = parseTitleFromLink(html!); // the three dots in a title obfuscate the full title, which is why we follow the link and parse the full title from the subsequent page
-        }
-      }
-      carObjList.push({
-        element: titleElement,
-        title: textContent,
-        price: priceElements[i].textContent!,
-      });
-    }
-
-    return carObjList;
-  }
-
-  async extractAllListings(): Promise<CarElement[]> {
-    let generalCarObject: Array<CarElement[]> = [];
-    const urls = this.createPaginationUrls();
-
-    await Promise.all(
-      urls.map(async (url) => {
-        const response = await fetch(url);
-        const decoder = new TextDecoder("windows-1251");
-        const buffer = await response.arrayBuffer();
-        const htmlString = decoder.decode(buffer);
-        const cars = await this.createCarObjects(htmlString);
-        generalCarObject.push(cars);
-      })
-    );
-    return generalCarObject.flat(2);
-  }
-}
-
 function hideFirstPage() {
   const titleElems = document.getElementsByClassName("mmmL");
   for (let i = 0; i < titleElems.length; i++) {
@@ -219,12 +131,7 @@ async function main(request: any, port: chrome.runtime.Port) {
     if url structure changes, it can happen that random urls are generated and car listings are extracted for brands and models
     that have nothing to do with the car and the brand you currently have loaded in front of you
     */
-    if (
-      !carsMatchingFilter[0].title
-        .trim()
-        .toLowerCase()
-        .includes(searchKeywords.split(" ").slice(0, 2).join(" ").toLowerCase())
-    ) {
+    if (!isCorrectSearch(carsMatchingFilter[0].title, searchKeywords)) {
       throw new Error("Parsed objects do not coincide with desired search.");
     }
 

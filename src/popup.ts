@@ -1,3 +1,5 @@
+import { SearchInfo, FilterRequest } from "./background";
+
 // initialize port
 let port: chrome.runtime.Port;
 
