@@ -264,6 +264,8 @@ async function main(request: any, port: chrome.runtime.Port) {
 
 chrome.runtime.onConnect.addListener(function (port) {
   console.assert(port.name === "MOBILE_POPUP");
+  // storing original page state so it can replace the filtered page when remove filter is called
+  const originalHTML = document.documentElement.innerHTML;
   port.onMessage.addListener(async function (request) {
     // TODO: create a union type for request states (successful, error, etc.) in background script
     if (request.type === "popuprequest") {
@@ -281,7 +283,6 @@ chrome.runtime.onConnect.addListener(function (port) {
                   cacheArray[item].keywords ===
                   fullSearchKeywords(request.filterValue)
                 ) {
-                  // TODO: is first condition needed?
                   document.documentElement.innerHTML =
                     cacheArray[item].filteredHtmlText;
                   port.postMessage({
