@@ -1,4 +1,4 @@
-import { SearchInfo, FilterRequest } from "./background";
+import { SearchInfo, FilterRequest, ChannelRequest } from "./background";
 
 // initialize port
 let port: chrome.runtime.Port;
@@ -58,7 +58,7 @@ function executeFilter() {
       }
       loading.textContent = "";
     }
-    if (response.type === "populate") {
+    if (response.type === "populatePopupInterface") {
       const cachedObject: SearchInfo = JSON.parse(response.message);
       populateData(cachedObject);
       loading.textContent = "";
@@ -67,9 +67,13 @@ function executeFilter() {
 }
 
 function removeFilter() {
-  port.postMessage({ type: "popuprequest", message: "removefilter" });
+  const removeFilterReq: ChannelRequest = {
+    type: "popuprequest",
+    message: "removefilter",
+  };
+  port.postMessage(removeFilterReq);
   port.onMessage.addListener(function (response) {
-    if (response.message === "restoreElements") {
+    if (response.type === "restoreElements") {
       for (const key of [
         "searchTerm",
         "remainingelementcount",

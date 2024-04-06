@@ -1,14 +1,16 @@
+export type HTMLString = string & { _brand: "html" };
+
 export interface SearchInfo {
   searchValue: string;
   keywords: string;
   filterAmount: number;
   avgPrice: number;
-  filteredHtmlText: string;
+  filteredHtmlText: HTMLString;
 }
 
 export interface ChannelRequest {
-  type: "popuprequest";
-  message: string;
+  type: string;
+  message?: string;
 }
 
 export interface FilterRequest extends ChannelRequest {

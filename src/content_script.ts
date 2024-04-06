@@ -1,4 +1,9 @@
-import { CarElement, SearchInfo } from "./background";
+import {
+  HTMLString,
+  CarElement,
+  ChannelRequest,
+  SearchInfo,
+} from "./background";
 import Parser from "./lib/parser";
 import isCorrectSearch from "./lib/searchValidator";
 
@@ -116,7 +121,11 @@ async function main(request: any, port: chrome.runtime.Port) {
   const carsMatchingFilter = matchElement(cars, request.filterValue as string);
 
   if (carsMatchingFilter.length === 0) {
-    port.postMessage({ type: "warning", message: "no listings found" });
+    const warningMsg: ChannelRequest = {
+      type: "warning",
+      message: "no listings found",
+    };
+    port.postMessage(warningMsg);
     return;
   } else {
     hideFirstPage(); // hide elements on the first page, so we can populate it with filtered elements
@@ -142,10 +151,14 @@ async function main(request: any, port: chrome.runtime.Port) {
       keywords: searchKeywords,
       filterAmount: carsMatchingFilter.length,
       avgPrice: avgPrice,
-      filteredHtmlText: filterElementsHTML,
+      filteredHtmlText: filterElementsHTML as HTMLString,
     };
 
-    port.postMessage({ type: "populate", message: JSON.stringify(cacheItem) });
+    const populatePopupInterfaceReq: ChannelRequest = {
+      type: "populatePopupInterface",
+      message: JSON.stringify(cacheItem),
+    };
+    port.postMessage(populatePopupInterfaceReq);
 
     chrome.storage.local.get(["lastSearches"], function (result) {
       if (!result.lastSearches) {
@@ -192,10 +205,11 @@ chrome.runtime.onConnect.addListener(function (port) {
                 ) {
                   document.documentElement.innerHTML =
                     cacheArray[item].filteredHtmlText;
-                  port.postMessage({
-                    type: "populate",
+                  const populateFromCacheReq: ChannelRequest = {
+                    type: "populatePopupInterface",
                     message: JSON.stringify(cacheArray[item]),
-                  });
+                  };
+                  port.postMessage(populateFromCacheReq);
                   return;
                 }
               }
@@ -208,7 +222,8 @@ chrome.runtime.onConnect.addListener(function (port) {
         case "removefilter":
           hidePagination("inline");
           document.documentElement.innerHTML = originalHTML;
-          port.postMessage({ message: "restoreElements" });
+          const restoreReq: ChannelRequest = { type: "restoreElements" };
+          port.postMessage(restoreReq);
           break;
         default:
           console.log("No message from popup.");
