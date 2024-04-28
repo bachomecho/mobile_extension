@@ -29,3 +29,7 @@ The code is bundled using webpack
 3. In the top left corner, click 'Load unpacked'
 
 4. Select the dist directory in the project (NOTE: you must build with previously mentioned command first)
+
+## Video showcase of extension
+https://github.com/bachomecho/mobile_extension/assets/64164772/55806260-ef93-4fe7-a4fb-232a421e0160
+
