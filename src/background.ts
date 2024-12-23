@@ -23,3 +23,8 @@ export interface CarElement {
 	price: string;
 	currency?: "лв" | "EUR";
 }
+
+export interface IPagination {
+	paginationBars: HTMLCollectionOf<Element>;
+	getTotalAmountPages: () => number;
+}

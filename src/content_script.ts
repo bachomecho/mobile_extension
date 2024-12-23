@@ -4,6 +4,7 @@ import {
 	ChannelRequest,
 	SearchInfo,
 } from "./background";
+import Pagination from "./lib/pagination";
 import Parser from "./lib/parser";
 import isCorrectSearch from "./lib/searchValidator";
 
@@ -187,11 +188,18 @@ chrome.runtime.onConnect.addListener(function (port) {
 	console.assert(port.name === "MOBILE_POPUP");
 	// storing original page state so it can replace the filtered page when remove filter is called
 	const originalHTML = document.documentElement.innerHTML;
+	const pagination = new Pagination("pagination");
 	port.onMessage.addListener(async function (request) {
 		// TODO: create a union type for request states (successful, error, etc.) in background script
 		if (request.type === "popuprequest") {
 			switch (request.message) {
 				case "filter":
+					const parser = new Parser();
+					const totalPages = pagination.getTotalAmountPages();
+					const urlsToExtract = parser.createPaginationUrls(totalPages);
+					console.log("urls to extract: ", urlsToExtract);
+					const cars = await parser.extractAllListings(urlsToExtract);
+
 					chrome.storage.local.get(["lastSearches"], async function (result) {
 						if (result.lastSearches) {
 							const cacheArray: SearchInfo[] = JSON.parse(result.lastSearches);
@@ -219,9 +227,10 @@ chrome.runtime.onConnect.addListener(function (port) {
 							await main(request, port);
 						}
 					});
+					pagination.togglePaginationBars("hide");
 					break;
 				case "removefilter":
-					hidePagination("inline");
+					pagination.togglePaginationBars("show");
 					document.documentElement.innerHTML = originalHTML;
 					const restoreReq: ChannelRequest = { type: "restoreElements" };
 					port.postMessage(restoreReq);
