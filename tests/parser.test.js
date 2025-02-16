@@ -1,13 +1,21 @@
-import fs from "fs";
 import { JSDOM } from "jsdom";
-import path from "path";
+import path from "path"
+import fs from "fs"
+
+
+const sampleHtmlPath = path.resolve(__dirname, "forTesting.html")
+test('Check if HTML file was created', () => {
+  expect(fs.existsSync(sampleHtmlPath)).toBe(true);
+});
 
 const sampleHtml = fs.readFileSync(
-	path.resolve(__dirname, "sample_response.html"),
+	sampleHtmlPath,
 	"utf-8"
 );
+test('Ensure html file is not empty', () => {
+  expect(sampleHtml.length).toBeGreaterThan(0);
+});
 const { document } = new JSDOM(sampleHtml, { contentType: "text/html" }).window;
-
 describe("testing pagination parsing", () => {
 	test("pagination element exists", () => {
 		const paginationElement = document.querySelector(".pagination");

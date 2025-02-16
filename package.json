@@ -4,7 +4,7 @@
 	"description": "extension for mobile.bg",
 	"main": "index.js",
 	"scripts": {
-		"test": "jest",
+		"test": "(node ./tests/fetchHtml.js && jest)",
 		"build": "webpack --config webpack/webpack.config.js"
 	},
 	"keywords": [],
@@ -29,6 +29,7 @@
 		"jest": "^29.7.0",
 		"jest-environment-jsdom": "^29.7.0",
 		"ts-loader": "^9.2.6",
-		"webpack-cli": "^4.9.1"
+		"webpack-cli": "^4.9.1",
+		"whatwg-fetch": "^3.6.20"
 	}
 }
