@@ -17,12 +17,11 @@ function findClosestAncestorWithClass(
 	}
 
 	// traverse the DOM tree upwards until a parent with the specified class is found
-	let count = 0; // this count is needed because the first element with class tablereset is the car image and not the main parent node
 	while (element.parentElement) {
 		element = element.parentElement;
-		if (element.classList.contains(className) && count != 0) {
+		if (element.classList.contains(className)) {
 			return element;
-		} else count++;
+		}
 	}
 	return null;
 }

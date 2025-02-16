@@ -34,3 +34,26 @@ describe("testing pagination parsing", () => {
 		expect(Number(nOfPages)).toEqual(1);
 	});
 });
+
+describe("testing car information parsing", () => {
+	function findClosestAncestorWithClass(element, className) {
+		if (element.classList.contains(className)) {
+			return element;
+		}
+
+		// traverse the DOM tree upwards until a parent with the specified class is found
+		while (element.parentElement) {
+			element = element.parentElement;
+			if (element.classList.contains(className)) {
+				return element;
+			}
+		}
+		return null;
+	}
+	test("finding closest ancestor for car elements based on title class", () => {
+		const titleElement = document.querySelector(".title.saveSlink");
+		const ancestorElement = findClosestAncestorWithClass(titleElement, "item");
+		expect(ancestorElement).toBeInTheDocument();
+		expect(ancestorElement).toHaveAttribute("id");
+	});
+});
