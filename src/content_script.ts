@@ -90,7 +90,8 @@ function populateWithFilteredElems(
 async function applyFilter(
 	cars: CarElement[],
 	request: any,
-	port: chrome.runtime.Port
+	port: chrome.runtime.Port,
+	pagination: Pagination
 ) {
 	const carsMatchingFilter = matchElement(cars, request.filterValue as string);
 
@@ -133,6 +134,7 @@ async function applyFilter(
 			message: JSON.stringify(cacheItem),
 		};
 		port.postMessage(populatePopupInterfaceReq);
+		pagination.togglePaginationBars("hide");
 
 		chrome.storage.local.get(["lastSearches"], function (result) {
 			if (!result.lastSearches) {
@@ -195,9 +197,8 @@ chrome.runtime.onConnect.addListener(function (port) {
 								}
 							}
 						}
-						await applyFilter(cars, request, port);
+						await applyFilter(cars, request, port, pagination);
 					});
-					pagination.togglePaginationBars("hide");
 					break;
 				case "removefilter":
 					pagination.togglePaginationBars("show");
