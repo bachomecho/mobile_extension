@@ -25,14 +25,7 @@ export default class Parser {
 		// getting title from follow link
 		return doc.getElementsByTagName("h1")[0].textContent!;
 	}
-	createPaginationUrls(): string[] {
-		let pagesString: string =
-			document
-				.getElementsByClassName("pageNumbersInfo")[0]
-				.textContent?.split(" ")
-				.at(-1) ?? "0";
-		const numPages = parseInt(pagesString);
-
+	createPaginationUrls(numPages: number): string[] {
 		let paginationUrls = new Array<string>();
 		for (let i = 1; i <= numPages; i++) {
 			paginationUrls.push(window.location.href + `/p-${i}`);
@@ -44,13 +37,13 @@ export default class Parser {
 		const parser = new DOMParser();
 		const doc = parser.parseFromString(htmlText, "text/html");
 
-		const titleElements = doc.getElementsByClassName("mmmL");
+		const titleElements = doc.querySelectorAll(".title.saveSlink");
 		const priceElements = doc.getElementsByClassName("price");
 		const carObjList = new Array<CarElement>();
 		for (let i = 0; i < titleElements.length; i++) {
 			// first two elements with class mmm are not car elements so they are skipped over
 			const titleElement = titleElements[i] as HTMLElement;
-			let textContent = titleElement.textContent ?? "empty";
+			let textContent = titleElement.textContent?.trim() ?? "empty";
 			if (textContent.includes("...")) {
 				const link = titleElement.getAttribute("href");
 				if (link) {
@@ -61,16 +54,15 @@ export default class Parser {
 			carObjList.push({
 				element: titleElement,
 				title: textContent,
-				price: priceElements[i].textContent!,
+				price: priceElements[i].textContent!.trim(),
 			});
 		}
 
 		return carObjList;
 	}
 
-	async extractAllListings(): Promise<CarElement[]> {
+	async extractAllListings(urls: string[]): Promise<CarElement[]> {
 		let generalCarObject: Array<CarElement[]> = [];
-		const urls = this.createPaginationUrls();
 
 		await Promise.all(
 			urls.map(async (url) => {

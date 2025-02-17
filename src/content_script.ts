@@ -66,16 +66,6 @@ function calculateAvgPrice(elements: CarElement[]): number {
 	return 0;
 }
 
-function hidePagination(hide: "none" | "inline"): void {
-	document.querySelectorAll("span.pageNumbersSelect").forEach((elem) => {
-		const paginationElem = findClosestAncestorWithClass(
-			elem,
-			"tablereset"
-		) as HTMLElement;
-		paginationElem.style.display = hide;
-	});
-}
-
 function fullSearchKeywords(filterValue: string): string {
 	const brandModel = document
 		.querySelector('[name="search"] h1')
@@ -85,39 +75,23 @@ function fullSearchKeywords(filterValue: string): string {
 	return brandModel + " " + filterValue;
 }
 
-function hideFirstPage() {
-	const titleElems = document.getElementsByClassName("mmmL");
-	for (let i = 0; i < titleElems.length; i++) {
-		const containingElement = findClosestAncestorWithClass(
-			titleElems[i],
-			"tablereset"
-		) as HTMLElement;
-		containingElement!.style.display = "none";
-	}
-}
-
-// populate first page with filtered elements
-function populateWithFilteredElems(matchingElements: CarElement[]) {
+function populateWithFilteredElems(
+	matchingElements: CarElement[],
+	listingsWrapper: Element
+) {
 	// finding ancestor elements
 	const filteredElements = matchingElements
-		.map((elem) => findClosestAncestorWithClass(elem.element, "tablereset"))
+		.map((elem) => findClosestAncestorWithClass(elem.element, "item"))
 		.filter((elem) => elem) as Element[];
 
-	// 'break' element before car listing begin -> append filtered elements after it
-	const carTable = document.querySelector(
-		".tablereset.m-t-10 br:nth-of-type(2)"
-	);
-
-	// populate first page with filtered elements
-	filteredElements.forEach((elem) =>
-		carTable?.insertAdjacentElement("afterend", elem)
-	);
+	listingsWrapper.replaceChildren(...filteredElements);
 }
 
-async function main(request: any, port: chrome.runtime.Port) {
-	const parser = new Parser();
-	const cars = await parser.extractAllListings();
-
+async function applyFilter(
+	cars: CarElement[],
+	request: any,
+	port: chrome.runtime.Port
+) {
 	const carsMatchingFilter = matchElement(cars, request.filterValue as string);
 
 	if (carsMatchingFilter.length === 0) {
@@ -128,8 +102,8 @@ async function main(request: any, port: chrome.runtime.Port) {
 		port.postMessage(warningMsg);
 		return;
 	} else {
-		hideFirstPage(); // hide elements on the first page, so we can populate it with filtered elements
-		populateWithFilteredElems(carsMatchingFilter);
+		const listingsWrapper = document.getElementsByClassName("ads2023")[0];
+		populateWithFilteredElems(carsMatchingFilter, listingsWrapper);
 
 		const avgPrice = calculateAvgPrice(carsMatchingFilter);
 
@@ -167,10 +141,12 @@ async function main(request: any, port: chrome.runtime.Port) {
 				chrome.storage.local.set({ lastSearches: JSON.stringify(cache) });
 			} else {
 				let cachedSearches = JSON.parse(result.lastSearches);
-				// creates a queue: first item is taken out if there are three or more items in the cache, and the new entry is being appended`
+				// creates a queue: first item is taken out if there are three or more items in the cache, and the new entry is being appended
 				if (cachedSearches.length >= 3) {
-					const some = cachedSearches.slice(1).concat(cacheItem);
-					chrome.storage.local.set({ lastSearches: JSON.stringify(some) });
+					const shiftedCache = cachedSearches.slice(1).concat(cacheItem);
+					chrome.storage.local.set({
+						lastSearches: JSON.stringify(shiftedCache),
+					});
 				} else {
 					cachedSearches.push(cacheItem);
 					chrome.storage.local.set({
@@ -179,10 +155,8 @@ async function main(request: any, port: chrome.runtime.Port) {
 				}
 			}
 		});
-		hidePagination("none");
 	}
 }
-
 chrome.runtime.onConnect.addListener(function (port) {
 	console.assert(port.name === "MOBILE_POPUP");
 	// storing original page state so it can replace the filtered page when remove filter is called
@@ -196,7 +170,6 @@ chrome.runtime.onConnect.addListener(function (port) {
 					const parser = new Parser();
 					const totalPages = pagination.getTotalAmountPages();
 					const urlsToExtract = parser.createPaginationUrls(totalPages);
-					console.log("urls to extract: ", urlsToExtract);
 					const cars = await parser.extractAllListings(urlsToExtract);
 
 					chrome.storage.local.get(["lastSearches"], async function (result) {
@@ -221,10 +194,8 @@ chrome.runtime.onConnect.addListener(function (port) {
 									return;
 								}
 							}
-							await main(request, port);
-						} else {
-							await main(request, port);
 						}
+						await applyFilter(cars, request, port);
 					});
 					pagination.togglePaginationBars("hide");
 					break;
